@@ -295,6 +295,26 @@ button {
   cursor: pointer;
 }
 
+/* Carts Item Picture */
+.cart-item-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.cart-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-right: 1rem;
+}
+
+
+.cart-details {
+  flex: 1;
+}
+
 /* remove button */
 .remove-btn {
   background: transparent;

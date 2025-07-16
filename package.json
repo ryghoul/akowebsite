@@ -16,6 +16,7 @@
     "cors": "^2.8.5",
     "debug": "^4.4.1",
     "depd": "^2.0.0",
+    "dotenv": "^17.2.0",
     "dunder-proto": "^1.0.1",
     "ee-first": "^1.1.1",
     "encodeurl": "^2.0.0",
@@ -68,13 +69,13 @@
     "side-channel-map": "^1.0.1",
     "side-channel-weakmap": "^1.0.2",
     "statuses": "^2.0.2",
+    "stripe": "^18.3.0",
     "toidentifier": "^1.0.1",
     "type-is": "^2.0.1",
     "unpipe": "^1.0.0",
     "vary": "^1.1.2",
     "wrappy": "^1.0.2"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",

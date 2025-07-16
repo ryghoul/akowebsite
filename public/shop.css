@@ -147,6 +147,22 @@
   line-height: 1.4;
 }
 
+.product-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+}
+
+.product-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: start;
+}
+
 /* ── PURCHASE BOX ───────────────────────────────────────────────── */
 .purchase-box {
   background: var(--surface-light);

@@ -1,17 +1,22 @@
-//----------- RESERVATION ----------//
+// ───────── IMPORTS ─────────
+require('dotenv').config(); // load .env variables
 const express = require('express');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+//const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Set this in your .env file
 
+// ───────── INIT APP ─────────
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ───────── MIDDLEWARE ─────────
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
+// ───────── RESERVATION ROUTE ─────────
 app.post('/reserve', async (req, res) => {
   const { name, email, date, time, partySize, notes } = req.body;
 
@@ -19,11 +24,10 @@ app.post('/reserve', async (req, res) => {
     service: 'gmail',
     auth: {
       user: 'napppy.lee@gmail.com',
-      pass: 'prjvtfjoffeaqkpu' // App Password
+      pass: 'prjvtfjoffeaqkpu' // Gmail App Password
     }
   });
 
-  // 📩 Email to you (admin/test inbox)
   const mailOptions = {
     from: email,
     to: 'napppy.lee@gmail.com',
@@ -38,7 +42,6 @@ Notes: ${notes || "None"}
     `
   };
 
-  // ✅ Confirmation email to the guest
   const confirmationMailOptions = {
     from: 'napppy.lee@gmail.com',
     to: email,
@@ -70,11 +73,7 @@ We look forward to sharing tea with you!
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-//------------ CONTACT ---------//
+// ───────── CONTACT ROUTE ─────────
 app.post('/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -82,18 +81,18 @@ app.post('/contact', async (req, res) => {
     service: 'gmail',
     auth: {
       user: 'napppy.lee@gmail.com',
-      pass: 'prjvtfjoffeaqkpu' // Replace with your Gmail app password
+      pass: 'prjvtfjoffeaqkpu'
     }
   });
 
   const mailOptions = {
     from: email,
-    to: 'napppy.lee@gmail.com', // ← this is where the contact message is sent
+    to: 'napppy.lee@gmail.com',
     subject: `New Message from ${name}`,
     text: `
-      Name: ${name}
-      Email: ${email}
-      Message: ${message}
+Name: ${name}
+Email: ${email}
+Message: ${message}
     `
   };
 
@@ -104,4 +103,37 @@ app.post('/contact', async (req, res) => {
     console.error('Email error:', err);
     res.status(500).json({ message: 'Failed to send message.' });
   }
+});
+
+// ───────── STRIPE CHECKOUT ROUTE ─────────
+app.post('/create-checkout-session', async (req, res) => {
+  const { items } = req.body;
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: items.map(item => ({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: item.name },
+          unit_amount: item.price, // price already in cents
+        },
+        quantity: item.quantity,
+      })),
+      success_url: 'http://localhost:3000/success.html',
+      cancel_url: 'http://localhost:3000/cancel.html',
+
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Stripe error:', err);
+    res.status(500).json({ error: 'Unable to create checkout session' });
+  }
+});
+
+// ───────── START SERVER ─────────
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

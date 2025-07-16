@@ -23,11 +23,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── ADD TO CART BUTTON ───────────────────────────
   addToCartButtons.forEach(button => {
     button.addEventListener('click', () => {
-      const productInfo = button.closest('.product-info');
+      const productCard = button.closest('.product-card');
+      const productInfo = productCard.querySelector('.product-info');
       const name = productInfo.querySelector('h1').innerText;
       const price = productInfo.querySelector('.price-tag')?.innerText || '$0';
       const color = productInfo.querySelector('label:nth-of-type(1) select')?.value || '';
       const size = productInfo.querySelector('label:nth-of-type(2) select')?.value || '';
+      const imageEl = productCard.querySelector('.product-image img');
+      const image = imageEl ? new URL(imageEl.getAttribute('src'), window.location.origin).href : 'placeholder.jpg';
+
+
+
 
       const currentCart = JSON.parse(localStorage.getItem('cart')) || [];
 
@@ -37,19 +43,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (existingItem) {
         existingItem.quantity++;
-      } else {
-        currentCart.push({ name, price, color, size, quantity: 1 });
-      }
+        } else {
+      currentCart.push({ name, price, color, size, quantity: 1, image });
+        }
 
-localStorage.setItem('cart', JSON.stringify(currentCart));
-showToast();
-renderCart();
+      localStorage.setItem('cart', JSON.stringify(currentCart));
+      showToast();
+      renderCart();
 
-// 🛒 Pulse animation
-cartToggle.classList.add('pulse');
-setTimeout(() => cartToggle.classList.remove('pulse'), 300);
-
+      cartToggle.classList.add('pulse');
+      setTimeout(() => cartToggle.classList.remove('pulse'), 300);
     });
+  });
+
+  // ─── CHECKOUT BUTTON ──────────────────────────────
+  checkoutBtn.addEventListener('click', async () => {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+    if (cart.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    const items = cart.map(item => {
+      const numericPrice = parseFloat(item.price.replace(/[^0-9.]/g, '')) || 0;
+      return {
+        name: item.name + (item.color ? ` - ${item.color}` : '') + (item.size ? ` (${item.size})` : ''),
+        price: Math.round(numericPrice * 100),
+        quantity: item.quantity
+      };
+    });
+
+    try {
+      const res = await fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error('No Stripe session URL received:', data);
+        alert('Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      alert('Failed to start checkout. Please try again later.');
+    }
   });
 
   // ─── RENDER CART ──────────────────────────────────
@@ -57,7 +100,6 @@ setTimeout(() => cartToggle.classList.remove('pulse'), 300);
     cartItemsContainer.innerHTML = '';
     const cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-    // Empty cart UI
     if (cart.length === 0) {
       cartItemsContainer.innerHTML = '<p>Your cart is empty.</p>';
       if (totalDisplay) totalDisplay.textContent = 'Total: $0.00';
@@ -68,28 +110,19 @@ setTimeout(() => cartToggle.classList.remove('pulse'), 300);
       if (checkoutBtn) checkoutBtn.style.display = 'block';
     }
 
-    // Render items
     cart.forEach((item, index) => addCartItemToDOM(item, index));
 
-    // Event listeners for Remove
     document.querySelectorAll('.remove-btn').forEach(btn => {
       btn.addEventListener('click', e => {
-        const itemEl = e.target.closest('.cart-item');
-        const index = Number(itemEl.dataset.index);
+        const index = Number(e.target.closest('.cart-item').dataset.index);
         const cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-        const cartItem = document.querySelector(`.cart-item[data-index="${index}"]`);
-        cartItem.classList.add('fade-out');
-
-        setTimeout(() => {
-          cart.splice(index, 1);
-          localStorage.setItem('cart', JSON.stringify(cart));
-          renderCart();
-        }, 300);
+        cart.splice(index, 1);
+        localStorage.setItem('cart', JSON.stringify(cart));
+        renderCart();
       });
     });
 
-    // Event listeners for Quantity +
     document.querySelectorAll('.qty-plus').forEach(btn => {
       btn.addEventListener('click', e => {
         const index = Number(e.target.closest('.cart-item').dataset.index);
@@ -100,7 +133,6 @@ setTimeout(() => cartToggle.classList.remove('pulse'), 300);
       });
     });
 
-    // Event listeners for Quantity -
     document.querySelectorAll('.qty-minus').forEach(btn => {
       btn.addEventListener('click', e => {
         const index = Number(e.target.closest('.cart-item').dataset.index);
@@ -117,7 +149,6 @@ setTimeout(() => cartToggle.classList.remove('pulse'), 300);
       });
     });
 
-    // Total price calculation
     let total = 0;
     cart.forEach(item => {
       const numericPrice = parseFloat(item.price.replace(/[^0-9.]/g, '')) || 0;
@@ -128,15 +159,10 @@ setTimeout(() => cartToggle.classList.remove('pulse'), 300);
       totalDisplay.textContent = `Total: $${total.toFixed(2)}`;
     }
 
-    // Update badge
     if (badge) {
       const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-      if (itemCount === 0) {
-        badge.style.display = 'none';
-      } else {
-        badge.style.display = 'inline-block';
-        badge.textContent = itemCount;
-      }
+      badge.style.display = itemCount ? 'inline-block' : 'none';
+      badge.textContent = itemCount;
     }
   }
 
@@ -147,15 +173,20 @@ setTimeout(() => cartToggle.classList.remove('pulse'), 300);
     div.dataset.index = index;
 
     div.innerHTML = `
-      <p><strong>${item.name}</strong> - ${item.price}</p>
-      ${item.color ? `<p>Color: ${item.color}</p>` : ''}
-      ${item.size ? `<p>Size: ${item.size}</p>` : ''}
-      <div class="qty-controls">
-        <button class="qty-minus">−</button>
-        <span class="item-qty">${item.quantity}</span>
-        <button class="qty-plus">+</button>
+      <div class="cart-item-content">
+        <img src="${item.image || 'placeholder.jpg'}" alt="${item.name}" class="cart-thumb" />
+        <div class="cart-details">
+          <p><strong>${item.name}</strong> - ${item.price}</p>
+          ${item.color ? `<p>Color: ${item.color}</p>` : ''}
+          ${item.size ? `<p>Size: ${item.size}</p>` : ''}
+          <div class="qty-controls">
+            <button class="qty-minus">−</button>
+            <span class="item-qty">${item.quantity}</span>
+            <button class="qty-plus">+</button>
+          </div>
+          <button class="remove-btn">Remove</button>
+        </div>
       </div>
-      <button class="remove-btn">Remove</button>
       <hr>
     `;
 
