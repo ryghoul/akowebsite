@@ -1,0 +1,157 @@
+
+/* ── INTRO SECTION ─────────────────────────────────────────────────── */
+
+.menu-intro {
+  padding: 4rem 1rem 2rem;
+}
+
+.menu-intro-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 2rem;
+}
+
+.intro-left {
+  flex: 1 1 45%;
+}
+
+.intro-right {
+  flex: 1 1 45%;
+}
+
+.menu-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #c52d2f;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.menu-headline {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-nearly-black);
+  line-height: 1.2;
+}
+
+.intro-heading {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  color: var(--text-nearly-black);
+}
+
+.intro-description {
+  font-size: 1rem;
+  color: var(--text-dark-gray);
+  line-height: 1.6;
+}
+
+
+/* ── MENU SECTION ─────────────────────────────────────────────────── */
+.menu-section {
+  padding: 0rem 1rem;
+  background-color: var(--accent-warm);
+  color: var(--text-nearly-black);
+}
+
+.menu-title {
+  text-align: center;
+  font-size: 2.5rem;
+  font-family: var(--font-heading);
+  margin-bottom: 2rem;
+  color: var(--text-nearly-black);
+}
+
+
+/* ── GRID LAYOUT ─────────────────────────────────────────────────── */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto 2rem;
+  padding: 0 1rem;
+}
+
+/* ── CARD STYLING ────────────────────────────────────────────────── */
+.menu-card {
+  background-color: var(--bg-cream);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  min-height: 220px;  /* consistent card height */
+}
+
+.menu-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.menu-card img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+
+.menu-card h3 {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  margin: 1rem 0 0.5rem;
+  color: var(--text-nearly-black);
+}
+
+.menu-card p {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-dark-gray);
+  padding: 0 1rem 1rem;
+  line-height: 1.6;
+}
+
+/* ── MENU SUB-SECTIONS ─────────────────────────────────────────────────── */
+
+.menu-subsection {
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.subsection-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 2rem auto 2rem auto;
+  padding: 1rem;
+}
+
+.subsection-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  color: var(--text-nearly-black);
+  white-space: nowrap;
+}
+
+.subsection-header hr {
+  flex-grow: 1;
+  height: 1px;
+  border: none;
+  background-color: var(--text-nearly-black);
+}
+
+.menu-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Web-fonts (optional) -->
+   <link
+  href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap"
+  rel="stylesheet"
+/>
+
+
+  <title>AKO by Lee</title>
+
+  <link rel="stylesheet" href="menu.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="slideshow.css"/>
+</head>
+<body>
+<!-- ── NAVBAR ─────────────────────────────────────────────────── -->
+    <nav id="navbar">
+
+  <!-- 1. Logo on the left -->
+  <a href="index.html" id="logo-link">
+    <img src="Pictures/ako.png" alt="AKO by Lee Logo" id="navbar-logo">
+  </a>
+
+  <!-- 2. Links centered via auto margins -->
+  <ul id="nav-links">
+    <li><a href="shop.html">Shop</a></li>
+    <li><a href="contact.html">Contact</a></li>
+    <li><a href="menu.html">Menu</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="reservation.html">Reservation</a></a></li>
+      <!-- icon links -->
+
+<li class="social-icon">
+  <a href="#" id="cart-toggle" aria-label="Cart">
+    <img src="Pictures/cart.svg" alt="" class="icon" />
+    <span id="cart-badge" class="cart-badge">0</span>
+  </a>
+</li>
+
+  </ul>
+</nav>
+
+<!-- CART SIDEBAR -->
+<aside id="cart-sidebar" aria-hidden="true">
+  <button id="cart-close" aria-label="Close cart">&times;</button>
+  <h2>Your Cart</h2>
+  <div id="cart-items">
+    <!-- JS will inject cart items here -->
+    <p>Your cart is empty.</p>
+  </div>
+    <div id="cart-total" class="cart-total">Total: $0.00</div>
+<button id="checkout-btn">Checkout</button>
+</aside>
+
+<!-- push it below your fixed navbar -->
+<div class="navbar-spacer"></div>
+
+<!-- ── DRINK SLIDESHOW ─────────────────────────────────────────────────────── -->
+<section class="slideshow">
+  <!-- Slide 1 -->
+  <div class="slide active">
+    <div class="slide-image" style="background-image: url('Pictures/drinkslides/d1.JPG');"></div>
+    <div class="slide-text">
+      <h4>AKO BY LEE</h4>
+      <h2>COMMUNITY</h2>
+      <p>Endlessly grateful for the Dance Community for the support</p>
+    </div>
+  </div>
+
+  <!-- Slide 2 -->
+  <div class="slide">
+    <div class="slide-image" style="background-image: url('Pictures/drinkslides/d2.JPG');"></div>
+    <div class="slide-text">
+      <h4>AKO BY LEE</h4>
+      <h2>SHOP</h2>
+      <p>Support our small business through curated pieces and collabs</p>
+    </div>
+  </div>
+
+  <!-- Slide 3 -->
+  <div class="slide">
+    <div class="slide-image" style="background-image: url('Pictures/drinkslides/d3.JPG');"></div>
+    <div class="slide-text">
+      <h4>AKO BY LEE</h4>
+      <h2>EVENTS</h2>
+      <p>Join us at local community events throughout the year</p>
+    </div>
+  </div>
+
+  <!-- Navigation Arrows -->
+  <button class="slide-nav prev">&#10094;</button>
+  <button class="slide-nav next">&#10095;</button>
+
+    <!-- Navigation Dot -->
+<div class="slide-dots">
+  <span class="dot active" data-index="0"></span>
+  <span class="dot" data-index="1"></span>
+  <span class="dot" data-index="2"></span>
+</div>
+
+</section>
+
+
+
+<!-- ── INTRO ─────────────────────────────────────────────────── -->
+
+<section class="menu-intro">
+  <div class="menu-intro-wrapper">
+    <div class="intro-left">
+      <h4 class="menu-label">DRINKS</h4>
+      <h2 class="menu-headline">Flavors that Bridge Continents</h2>
+    </div>
+    <div class="intro-right">
+      <h4 class="intro-heading">OUR WAY OF DOING THINGS</h4>
+      <p class="intro-description">
+        From our kitchen – we chop, peel, cook, stir, and press by hand in order to extract real flavors from raw ingredients such as fresh pandan leaves,
+        </p>
+        </div>
+        </div>
+        </section>
+
+<!-- ── MENU ─────────────────────────────────────────────────── -->
+
+<section class="menu-section">
+
+<!-- CURRENT MENU -->
+  <div class="subsection-header">
+    <h2>Current Menu</h2>
+    <hr />
+  </div>
+
+  <div class="menu-grid">
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Cheri Drink">
+      <h3>Rooibus</h3>
+      <p>Earthy, Nutty, Sage (Non-Caffeinated)</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Gesha Old Fashioned">
+      <h3>Lychee Infused: Black Tea</h3>
+      <p>Bright, Delicate, Fragrant</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Marble 2025 Edition">
+      <h3>Wuyi Oolong Tea</h3>
+      <p>Earthy, Nutty, Roasted</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/lsbt.JPG" alt="Cheri Drink">
+      <h3>Lapsong Souchang Black Tea</h3>
+      <p>Smokey, Wood Bonito</p>
+    </div>
+  </div>
+
+  <!-- GOING NOWHERE MENU 2025 -->
+    <div class="subsection-header">
+    <h2>Going Nowhere Menu 2025</h2>
+    <hr />
+  </div>
+
+  <div class="menu-grid">
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Cheri Drink">
+      <h3>Rooibus</h3>
+      <p>Earthy, Nutty, Sage (Non-Caffeinated)</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Gesha Old Fashioned">
+      <h3>Lychee Infused: Black Tea</h3>
+      <p>Bright, Delicate, Fragrant</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Marble 2025 Edition">
+      <h3>Wuyi Oolong Tea</h3>
+      <p>Earthy, Nutty, Roasted</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/lsbt.JPG" alt="Cheri Drink">
+      <h3>Lapsong Souchang Black Tea</h3>
+      <p>Smokey, Wood Bonito</p>
+    </div>
+  </div>
+
+  <!-- SEASONAL SPRING/SUMMER MENU 2025 -->
+  <div class="subsection-header">
+    <h2>Seasonal Spring/Summer Menu 2025</h2>
+    <hr />
+  </div>
+
+  <div class="menu-grid">
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Cheri Drink">
+      <h3>Rooibus</h3>
+      <p>Earthy, Nutty, Sage (Non-Caffeinated)</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Gesha Old Fashioned">
+      <h3>Lychee Infused: Black Tea</h3>
+      <p>Bright, Delicate, Fragrant</p>
+    </div>
+  </div>
+
+  <!-- SEASONAL FALL/WINTER MENU 2024-->
+  <div class="subsection-header">
+    <h2>Seasonal Fall/Winter Menu 2024</h2>
+    <hr />
+  </div>
+
+  <div class="menu-grid">
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Cheri Drink">
+      <h3>Rooibus</h3>
+      <p>Earthy, Nutty, Sage (Non-Caffeinated)</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Gesha Old Fashioned">
+      <h3>Lychee Infused: Black Tea</h3>
+      <p>Bright, Delicate, Fragrant</p>
+    </div>
+
+    <div class="menu-card">
+      <img src="Pictures/menu/r.JPG" alt="Gesha Old Fashioned">
+      <h3>Lychee Infused: Black Tea</h3>
+      <p>Bright, Delicate, Fragrant</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── FOOTER ─────────────────────────────────────────────────────── -->
+<footer>
+  <!-- Top row: logo, links, icons -->
+  <div class="footer-top">
+    <a href="index.html" class="footer-logo">AKO BY LEE</a>
+    <ul class="footer-nav">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="shop.html">Shop</a></li>
+      <li><a href="menu.html">Menu</a></li>
+      <li><a href="reservation.html">Reservation</a></li>
+    </ul>
+    <div class="footer-icons">
+      <a href="mailto:napppylee@gmail.com" aria-label="Email">
+        <!-- put your mail SVG here -->
+        <svg width="24" height="24" fill="currentColor"><!--…--></svg>
+      </a>
+      <a href="https://www.instagram.com/_.akobylee/?hl=en" aria-label="Instagram">
+        <!-- put your Instagram SVG here -->
+        <svg width="24" height="24" fill="currentColor"><!--…--></svg>
+      </a>
+    </div>
+  </div>
+
+  <hr class="footer-divider">
+
+  <!-- Newsletter -->
+  <div class="footer-newsletter">
+    <h2>Stay in the Loop</h2>
+    <form action="#" method="post" class="newsletter-form">
+      <input type="email" name="email" placeholder="Email" required>
+      <button type="submit">Sign Up</button>
+    </form>
+    <p class="footer-note">
+      This form is protected by reCAPTCHA and the Google 
+      <a href="https://policies.google.com/privacy" target="_blank">Privacy Policy</a> 
+      and 
+      <a href="https://policies.google.com/terms" target="_blank">Terms of Service</a> apply.
+    </p>
+  </div>
+
+  <!-- Bottom row: copyright -->
+  <div class="footer-bottom">
+    <p>© 2025 by AKO by Lee. All rights reserved.</p>
+  </div>
+</footer>
+  </div>
+
+  <script src="script.js"></script>
+  <script src="slideshow.js"></script>
+
+</body>
+</html>
