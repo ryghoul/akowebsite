@@ -100,7 +100,7 @@
   <!--------------------- NEW ARRIVALS -------------------->
 
   <!--------------------- HOODIE -------------------->
-  <div class="product-card">
+  <div class="product-card" data-product="hoodie">
     <div class="product-image">
 
       <!-- IMAGE GALLERY -->
@@ -155,12 +155,16 @@
 
         </label>
         <label>Size
-          <select>
+          <select class="size-select" data-product="hoodie">
             <option>Small</option>
             <option>Medium</option>
             <option>Large</option>
           </select>
         </label>
+
+        <!-- NEW: shows live stock for the current variant + size -->
+    <div class="stock-line" data-product="hoodie">In stock: <span class="stock-count">—</span></div>
+
         <button class="btn-outline add-to-cart">Add to Cart</button>
       </div>
     </div>

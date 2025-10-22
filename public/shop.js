@@ -125,3 +125,168 @@
   document.querySelectorAll('.product-gallery').forEach(initGallery);
 })();
 
+// shop.js
+
+// --- Helpers ---
+function currentSKUForCard(card) {
+  const product = card.dataset.product;
+  const variantSel = card.querySelector('.variant-select[data-product="'+product+'"]');
+  const sizeSel = card.querySelector('.size-select[data-product="'+product+'"]');
+
+  const variant = variantSel ? variantSel.value.trim() : 'NOVARIANT';
+  const size = sizeSel ? sizeSel.value.trim() : 'NOSIZE';
+
+  return `${product}|${variant}|${size}`;
+}
+
+function updateStockLine(card, invMap) {
+  const sku = currentSKUForCard(card);
+  const line = card.querySelector('.stock-line');
+  const countEl = card.querySelector('.stock-line .stock-count');
+  const addBtn = card.querySelector('.add-to-cart');
+
+  const stock = invMap[sku] ?? 0;
+
+  if (countEl) countEl.textContent = stock;
+  if (addBtn) {
+    addBtn.disabled = stock <= 0;
+    addBtn.textContent = stock > 0 ? 'Add to Cart' : 'Out of Stock';
+  }
+}
+
+// Build cart payload from your sidebar DOM (simple example)
+function getCartFromSidebar() {
+  // You likely already track cart items; if not, adapt this.
+  // Here’s a minimal structure read from DOM elements with data-sku/qty.
+  const items = [];
+  document.querySelectorAll('#cart-items .cart-item').forEach(ci => {
+    const sku = ci.getAttribute('data-sku');
+    const qty = parseInt(ci.getAttribute('data-qty'), 10) || 1;
+    if (sku && qty > 0) items.push({ sku, qty });
+  });
+  return items;
+}
+
+// Optionally keep a local working copy of inventory so users
+// can’t add more than what they just saw.
+let INVENTORY = {}; // filled by /api/inventory
+
+async function fetchInventory() {
+  const res = await fetch('/api/inventory', { method: 'GET' });
+  if (!res.ok) throw new Error('Failed to load inventory');
+  const data = await res.json(); // { sku: stock }
+  INVENTORY = data;
+}
+
+function attachVariantSizeListeners(card) {
+  const product = card.dataset.product;
+  const selects = card.querySelectorAll(`.variant-select[data-product="${product}"], .size-select[data-product="${product}"]`);
+  selects.forEach(sel => {
+    sel.addEventListener('change', () => updateStockLine(card, INVENTORY));
+  });
+}
+
+function attachAddToCart(card) {
+  const addBtn = card.querySelector('.add-to-cart');
+  if (!addBtn) return;
+
+  addBtn.addEventListener('click', () => {
+    const sku = currentSKUForCard(card);
+    const stock = INVENTORY[sku] ?? 0;
+    if (stock <= 0) return;
+
+    // Add to your cart UI (adjust to your structure)
+    const cartItems = document.getElementById('cart-items');
+    const existing = cartItems.querySelector(`.cart-item[data-sku="${sku}"]`);
+    if (existing) {
+      const currentQty = parseInt(existing.getAttribute('data-qty'), 10) || 1;
+      if (currentQty + 1 > stock) {
+        // Not enough local stock
+        alert('Not enough stock for that quantity.');
+        return;
+      }
+      existing.setAttribute('data-qty', String(currentQty + 1));
+      existing.querySelector('.ci-qty').textContent = `× ${currentQty + 1}`;
+    } else {
+      const div = document.createElement('div');
+      div.className = 'cart-item';
+      div.setAttribute('data-sku', sku);
+      div.setAttribute('data-qty', '1');
+      div.innerHTML = `
+        <div class="ci-line">
+          <span class="ci-name">${sku}</span>
+          <span class="ci-qty">× 1</span>
+        </div>
+      `;
+      cartItems.innerHTML = ''; // remove "Your cart is empty." placeholder
+      cartItems.appendChild(div);
+    }
+
+    // Toast
+    const toast = document.getElementById('cart-toast');
+    if (toast) {
+      toast.textContent = 'Added to cart!';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 1200);
+    }
+  });
+}
+
+async function doCheckout() {
+  const cart = getCartFromSidebar();
+  if (!cart.length) {
+    alert('Cart is empty.');
+    return;
+  }
+
+  const res = await fetch('/api/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cart })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data.ok) {
+    alert(data.error || 'Checkout failed.');
+    // Refresh inventory (maybe it ran out)
+    await fetchInventory();
+    // Refresh stock lines
+    document.querySelectorAll('.product-card[data-product]').forEach(card => updateStockLine(card, INVENTORY));
+    return;
+  }
+
+  // Success: update local inventory and UI
+  cart.forEach(item => {
+    if (typeof INVENTORY[item.sku] === 'number') {
+      INVENTORY[item.sku] = Math.max(0, INVENTORY[item.sku] - item.qty);
+    }
+  });
+
+  document.querySelectorAll('.product-card[data-product]').forEach(card => updateStockLine(card, INVENTORY));
+
+  // Clear cart
+  const cartItems = document.getElementById('cart-items');
+  cartItems.innerHTML = '<p>Your cart is empty.</p>';
+
+  alert('Order placed! Thanks :)');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await fetchInventory();
+  } catch (e) {
+    console.error(e);
+  }
+
+  // Initialize each product card
+  document.querySelectorAll('.product-card[data-product]').forEach(card => {
+    attachVariantSizeListeners(card);
+    attachAddToCart(card);
+    updateStockLine(card, INVENTORY);
+  });
+
+  // Hook checkout button
+  const checkoutBtn = document.getElementById('checkout-btn');
+  if (checkoutBtn) checkoutBtn.addEventListener('click', doCheckout);
+});

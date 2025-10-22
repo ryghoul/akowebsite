@@ -2,10 +2,11 @@
 require('dotenv').config();
 
 const path = require('path');
-const fs = require('fs'); 
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
+const mongoose = require('mongoose');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // ─────────────────────────────────────────────────────────────
@@ -22,30 +23,55 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://akobylee.onrend
   .map(s => s.trim())
   .filter(Boolean);
 
-const EMAIL_USER = process.env.EMAIL_USER;                // e.g. yourname@gmail.com
-const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;// Gmail App Password
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
 const TO_EMAIL = process.env.TO_EMAIL || EMAIL_USER;
 
 console.log('[STATIC ROOT]', STATIC_ROOT);
 console.log('[BASE URL]', PUBLIC_BASE_URL);
 
 // ─────────────────────────────────────────────────────────────
+// DB (MongoDB)
+// ─────────────────────────────────────────────────────────────
+const MONGO_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:27017';
+const MONGO_DB  = process.env.MONGO_DB  || 'akoshop';
+
+mongoose.connect(MONGO_URL, { dbName: MONGO_DB })
+  .then(() => console.log('[mongo] connected'))
+  .catch(err => console.error('[mongo] connection error', err));
+
+// Inventory model (expects ./models/Inventory.js as in our earlier message)
+let Inventory;
+try {
+  Inventory = require('./models/Inventory');
+} catch {
+  // fallback inline schema if the file isn't present
+  const { Schema, model } = mongoose;
+  const InventorySchema = new Schema({
+    sku:   { type: String, unique: true, index: true },
+    stock: { type: Number, default: 0, min: 0 },
+    price: { type: Number, default: 0 }
+  }, { timestamps: true });
+  Inventory = model('Inventory', InventorySchema);
+}
+
+// ─────────────────────────────────────────────────────────────
 // Middleware
 // ─────────────────────────────────────────────────────────────
-app.use(cors({ origin: (origin, cb) => {
-  if (!origin) return cb(null, true);                     // allow same-origin / curl
-  return cb(null, ALLOWED_ORIGINS.includes(origin));
-}}));
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin / curl / mobile apps
+    cb(null, ALLOWED_ORIGINS.includes(origin));
+  }
+}));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(express.static(STATIC_ROOT, { fallthrough: true }));
 
 // ─────────────────────────────────────────────────────────────
-// Utility: file helpers
+// Utility
 // ─────────────────────────────────────────────────────────────
-const exists = p => {
-  try { return fs.existsSync(p); } catch { return false; }
-};
+const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
 
 // ─────────────────────────────────────────────────────────────
 // Debug & Health
@@ -55,7 +81,6 @@ app.get('/debug/public-list', (_req, res) => {
   try { list = fs.readdirSync(STATIC_ROOT); } catch { list = ['<missing public/>']; }
   res.json({ STATIC_ROOT, list });
 });
-
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // ─────────────────────────────────────────────────────────────
@@ -67,11 +92,9 @@ const indexFile   = path.join(STATIC_ROOT, 'index.html');
 
 app.get('/success', (_req, res) => res.sendFile(successFile));
 app.get('/success.html', (_req, res) => res.sendFile(successFile));
-
 app.get('/shop', (_req, res) => exists(shopFile) ? res.sendFile(shopFile) : res.redirect('/success.html'));
 app.get('/shop.html', (_req, res) => exists(shopFile) ? res.sendFile(shopFile) : res.redirect('/success.html'));
 
-// Root: prefer index.html → shop.html → success.html
 app.get('/', (_req, res) => {
   const file = exists(indexFile) ? indexFile : exists(shopFile) ? shopFile : successFile;
   res.sendFile(file, err => {
@@ -80,83 +103,56 @@ app.get('/', (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// Mailer (Gmail App Password)
+// Mailer (Gmail App Password) — Contact form
 // ─────────────────────────────────────────────────────────────
-// ── CONTACT (drop-in) ─────────────────────────────────────────
 const corsMW = cors({ origin: ALLOWED_ORIGINS });
 
-// Build one Gmail transporter (uses App Password)
-const CONTACT_EMAIL_USER = process.env.EMAIL_USER;
-const CONTACT_APP_PASS  = process.env.EMAIL_APP_PASSWORD;
-const CONTACT_TO_EMAIL  = process.env.TO_EMAIL || CONTACT_EMAIL_USER;
+const CONTACT_EMAIL_USER = EMAIL_USER;
+const CONTACT_APP_PASS  = EMAIL_APP_PASSWORD;
+const CONTACT_TO_EMAIL  = TO_EMAIL;
 
 let contactTransporter = null;
 function getTransporter() {
   if (contactTransporter) return contactTransporter;
-  if (!CONTACT_EMAIL_USER || !CONTACT_APP_PASS) {
-    throw new Error('Missing EMAIL_USER or EMAIL_APP_PASSWORD env');
-  }
+  if (!CONTACT_EMAIL_USER || !CONTACT_APP_PASS) throw new Error('Missing EMAIL_USER or EMAIL_APP_PASSWORD env');
   contactTransporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: CONTACT_EMAIL_USER, pass: CONTACT_APP_PASS },
-    // Helpful while debugging SMTP:
-    // logger: true, debug: true,
   });
   return contactTransporter;
 }
 
-// tiny helpers
 const clean = (s, max = 4000) =>
-  String(s ?? '')
-    .replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '')
-    .slice(0, max)
-    .trim();
+  String(s ?? '').replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '').slice(0, max).trim();
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
-// naive anti-spam: 1 request / 20s per IP
-const lastHitByIp = new Map();
+const lastHitByIp = new Map(); // naive spam throttle
 
-// Preflight (if FE/BE are different origins)
 app.options('/contact', corsMW);
-
-// POST /contact
 app.post('/contact', corsMW, async (req, res) => {
   try {
-    // throttle
     const ip = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim()
              || req.socket.remoteAddress || 'unknown';
     const now = Date.now(), last = lastHitByIp.get(ip) || 0;
     if (now - last < 20000) return res.status(429).json({ message: 'Please wait before sending again.' });
     lastHitByIp.set(ip, now);
 
-    // fields
     const name    = clean(req.body?.name, 80);
     const email   = clean(req.body?.email, 254);
     const message = clean(req.body?.message, 4000);
-    const honey   = clean(req.body?.website || '', 50); // optional hidden honeypot
+    const honey   = clean(req.body?.website || '', 50);
 
-    if (honey) return res.status(200).json({ message: 'Thanks!' }); // silently drop bots
-    if (!name || !email || !message) {
-      return res.status(400).json({ message: 'Name, email, and message are required.' });
-    }
-    if (!isEmail(email)) {
-      return res.status(400).json({ message: 'Please provide a valid email address.' });
-    }
+    if (honey) return res.status(200).json({ message: 'Thanks!' });
+    if (!name || !email || !message) return res.status(400).json({ message: 'Name, email, and message are required.' });
+    if (!isEmail(email)) return res.status(400).json({ message: 'Please provide a valid email address.' });
 
     const transporter = getTransporter();
-
-    // (Optional) verify once; ignore failure here to avoid user-facing delay
-    transporter.verify().then(() => {
-      if (!transporter._verifiedLogged) {
-        console.log('[mail] Gmail SMTP ready');
-        transporter._verifiedLogged = true;
-      }
-    }).catch(() => {});
+    transporter.verify().catch(() => {});
 
     await transporter.sendMail({
-      from: `"AKO Contact" <${CONTACT_EMAIL_USER}>`, // must be your Gmail
-      to: CONTACT_TO_EMAIL,                          // where YOU receive it
-      replyTo: email,                                // visitor’s email
+      from: `"AKO Contact" <${CONTACT_EMAIL_USER}>`,
+      to: CONTACT_TO_EMAIL,
+      replyTo: email,
       subject: `New message from ${name}`,
       text: message,
       html: `<p><b>Name:</b> ${name}</p>
@@ -164,14 +160,13 @@ app.post('/contact', corsMW, async (req, res) => {
              <p>${message.replace(/\n/g,'<br>')}</p>`,
     });
 
-    return res.json({ message: 'Thanks! Your message has been sent.' });
+    res.json({ message: 'Thanks! Your message has been sent.' });
   } catch (err) {
     const msg = err?.response || err?.message || 'Failed to send email. Check server logs.';
     console.error('[contact] error:', msg);
-    return res.status(500).json({ message: msg });
+    res.status(500).json({ message: msg });
   }
 });
-
 
 // ─────────────────────────────────────────────────────────────
 // Stripe: Create Checkout Session
@@ -187,7 +182,7 @@ app.post('/create-checkout-session', async (req, res) => {
       price_data: {
         currency: 'usd',
         product_data: { name: i.name },
-        unit_amount: i.price,                 // cents (integer)
+        unit_amount: i.price, // cents
       },
       quantity: i.quantity,
       adjustable_quantity: { enabled: true, minimum: 1, maximum: 10 },
@@ -215,9 +210,12 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// Confirm Order (no webhook) → emails receipt + owner notice
+// Confirm Order (no webhook) → send emails
 // ─────────────────────────────────────────────────────────────
 const emailedSessions = new Set();
+function tryGetMailer() {
+  try { return getTransporter(); } catch { return null; }
+}
 
 app.get('/api/confirm-order', async (req, res) => {
   try {
@@ -232,6 +230,7 @@ app.get('/api/confirm-order', async (req, res) => {
       return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
     }
 
+    const mailer = tryGetMailer(); // FIX: was undefined before
     if (mailer && !emailedSessions.has(session_id)) {
       const items = session.line_items?.data || [];
       const customerEmail = session.customer_details?.email || session.customer_email;
@@ -254,7 +253,6 @@ Total: $${amountTotal.toFixed(2)} ${currency}
 
 — AKO by Lee`;
 
-      // email customer (if available)
       if (customerEmail) {
         await mailer.sendMail({
           from: EMAIL_USER,
@@ -264,7 +262,6 @@ Total: $${amountTotal.toFixed(2)} ${currency}
         });
       }
 
-      // email store owner
       await mailer.sendMail({
         from: EMAIL_USER,
         to: TO_EMAIL || EMAIL_USER,
@@ -289,10 +286,67 @@ ${list || '(no items?)'}`,
 });
 
 // ─────────────────────────────────────────────────────────────
-// Catch-all for client-side routes (after APIs)
+// Inventory API (atomic decrement, no replica set required)
+// ─────────────────────────────────────────────────────────────
+
+// GET /api/inventory  -> { "sku": stock, ... }
+app.get('/api/inventory', async (_req, res) => {
+  try {
+    const items = await Inventory.find({}, { _id: 0, sku: 1, stock: 1 }).lean();
+    const map = {};
+    for (const it of items) map[it.sku] = it.stock;
+    res.json(map);
+  } catch (e) {
+    console.error('[inventory] load error:', e);
+    res.status(500).json({ ok: false, error: 'Failed to load inventory' });
+  }
+});
+
+// POST /api/checkout { cart:[{sku,qty}] }
+app.post('/api/checkout', async (req, res) => {
+  try {
+    const cart = Array.isArray(req.body.cart) ? req.body.cart : [];
+    if (!cart.length) return res.status(400).json({ ok: false, error: 'Cart is empty' });
+
+    // sanitize
+    for (const line of cart) {
+      line.sku = String(line.sku || '').trim();
+      line.qty = Math.max(1, parseInt(line.qty, 10) || 0);
+      if (!line.sku || !Number.isFinite(line.qty)) {
+        return res.status(400).json({ ok: false, error: 'Bad cart line' });
+      }
+    }
+
+    const decremented = [];
+
+    // one-by-one guarded decrements + rollback on failure
+    for (const line of cart) {
+      const result = await Inventory.updateOne(
+        { sku: line.sku, stock: { $gte: line.qty } },
+        { $inc: { stock: -line.qty } }
+      );
+
+      if (result.modifiedCount !== 1) {
+        // rollback
+        for (const prev of decremented) {
+          await Inventory.updateOne({ sku: prev.sku }, { $inc: { stock: prev.qty } });
+        }
+        return res.status(409).json({ ok: false, error: `Insufficient stock for ${line.sku}.` });
+      }
+      decremented.push({ sku: line.sku, qty: line.qty });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[checkout] error:', e);
+    res.status(500).json({ ok: false, error: 'Checkout failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Catch-all for client routes (after APIs)
 // ─────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  // Don’t hijack API/debug routes or non-GET methods
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api') || req.path.startsWith('/debug')) return next();
 
@@ -303,8 +357,8 @@ app.use((req, res, next) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// Start server (single .listen!)
+// ─────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on http://0.0.0.0:${PORT}`);
 });
-
-
