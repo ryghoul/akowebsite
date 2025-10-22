@@ -2,25 +2,33 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
+
 (async () => {
-  const [,, sku, stockOrDelta, mode = 'set'] = process.argv; // mode: 'set' | 'inc'
-  if (!sku || !stockOrDelta) {
-    console.log('Usage: node scripts/updateStock.js "<sku>" <number> [set|inc]');
-    process.exit(1);
-  }
-  const n = Number(stockOrDelta);
-  await mongoose.connect(process.env.MONGO_URL, { dbName: process.env.MONGO_DB || 'akoshop' });
+const [,, skuArg, deltaArg] = process.argv;
+if (!skuArg || !deltaArg) {
+console.error('Usage: node scripts/updateStock.js <sku> <delta>');
+process.exit(1);
+}
+const delta = Number(deltaArg);
+if (!Number.isFinite(delta)) {
+console.error('Delta must be a number');
+process.exit(1);
+}
 
-  const Inv = mongoose.model('Inventory', new mongoose.Schema({
-    sku: { type: String, unique: true }, stock: Number, price: Number
-  }));
 
-  if (mode === 'inc') {
-    await Inv.updateOne({ sku }, { $inc: { stock: n } }, { upsert: true });
-  } else {
-    await Inv.updateOne({ sku }, { $set: { stock: n } }, { upsert: true });
-  }
+const MONGO_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:27017';
+const MONGO_DB = process.env.MONGO_DB || 'akoshop';
+await mongoose.connect(MONGO_URL, { dbName: MONGO_DB });
 
-  console.log('done');
-  process.exit(0);
-})().catch(e => { console.error(e); process.exit(1); });
+
+const Inventory = require('../models/Inventory');
+const res = await Inventory.updateOne({ sku: skuArg }, { $inc: { stock: delta } });
+console.log('updated:', res);
+
+
+const doc = await Inventory.findOne({ sku: skuArg });
+console.log('now:', doc ? { sku: doc.sku, stock: doc.stock } : 'not found');
+
+
+await mongoose.disconnect();
+})();

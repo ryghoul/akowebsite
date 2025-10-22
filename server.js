@@ -7,7 +7,12 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// ─────────────────────────────────────────────────────────────
+// Optional Stripe (guarded if key is missing)
+// ─────────────────────────────────────────────────────────────
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || '';
+const stripe = STRIPE_KEY ? require('stripe')(STRIPE_KEY) : null;
 
 // ─────────────────────────────────────────────────────────────
 // Config
@@ -17,15 +22,21 @@ const PORT = Number(process.env.PORT) || 3000;
 
 const STATIC_DIR  = process.env.STATIC_DIR || 'public';
 const STATIC_ROOT = path.resolve(__dirname, STATIC_DIR);
-const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/,'') || `http://localhost:${PORT}`;
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://akobylee.onrender.com,http://localhost:3000')
+const PUBLIC_BASE_URL =
+  (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/,'') || `http://localhost:${PORT}`;
+
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS
+  || 'https://akobylee.onrender.com,http://localhost:3000,http://localhost:5173')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
+const EMAIL_USER = process.env.EMAIL_USER || '';
+const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || '';
 const TO_EMAIL = process.env.TO_EMAIL || EMAIL_USER;
+
+const MONGO_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:27017';
+const MONGO_DB  = process.env.MONGO_DB  || 'akoshop';
 
 console.log('[STATIC ROOT]', STATIC_ROOT);
 console.log('[BASE URL]', PUBLIC_BASE_URL);
@@ -33,25 +44,22 @@ console.log('[BASE URL]', PUBLIC_BASE_URL);
 // ─────────────────────────────────────────────────────────────
 // DB (MongoDB)
 // ─────────────────────────────────────────────────────────────
-const MONGO_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:27017';
-const MONGO_DB  = process.env.MONGO_DB  || 'akoshop';
-
 mongoose.connect(MONGO_URL, { dbName: MONGO_DB })
-  .then(() => console.log('[mongo] connected'))
+  .then(() => console.log('[mongo] connected', mongoose.connection.host, mongoose.connection.name))
   .catch(err => console.error('[mongo] connection error', err));
 
-// Inventory model (expects ./models/Inventory.js as in our earlier message)
+// Inventory model (use external file if present, else fallback)
 let Inventory;
 try {
   Inventory = require('./models/Inventory');
 } catch {
-  // fallback inline schema if the file isn't present
   const { Schema, model } = mongoose;
   const InventorySchema = new Schema({
-    sku:   { type: String, unique: true, index: true },
+    sku:   { type: String, unique: true, index: true, required: true },
     stock: { type: Number, default: 0, min: 0 },
-    price: { type: Number, default: 0 }
-  }, { timestamps: true });
+    price: { type: Number, default: 0, min: 0 },
+    active:{ type: Boolean, default: true },
+  }, { collection: 'inventories', timestamps: true });
   Inventory = model('Inventory', InventorySchema);
 }
 
@@ -60,7 +68,8 @@ try {
 // ─────────────────────────────────────────────────────────────
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // same-origin / curl / mobile apps
+    // allow same-origin / curl / mobile apps (no Origin header)
+    if (!origin) return cb(null, true);
     cb(null, ALLOWED_ORIGINS.includes(origin));
   }
 }));
@@ -68,9 +77,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(express.static(STATIC_ROOT, { fallthrough: true }));
 
-// ─────────────────────────────────────────────────────────────
-// Utility
-// ─────────────────────────────────────────────────────────────
 const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
 
 // ─────────────────────────────────────────────────────────────
@@ -103,21 +109,17 @@ app.get('/', (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// Mailer (Gmail App Password) — Contact form
+// Contact Mailer (Gmail App Password)
 // ─────────────────────────────────────────────────────────────
 const corsMW = cors({ origin: ALLOWED_ORIGINS });
-
-const CONTACT_EMAIL_USER = EMAIL_USER;
-const CONTACT_APP_PASS  = EMAIL_APP_PASSWORD;
-const CONTACT_TO_EMAIL  = TO_EMAIL;
 
 let contactTransporter = null;
 function getTransporter() {
   if (contactTransporter) return contactTransporter;
-  if (!CONTACT_EMAIL_USER || !CONTACT_APP_PASS) throw new Error('Missing EMAIL_USER or EMAIL_APP_PASSWORD env');
+  if (!EMAIL_USER || !EMAIL_APP_PASSWORD) throw new Error('Missing EMAIL_USER or EMAIL_APP_PASSWORD env');
   contactTransporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: CONTACT_EMAIL_USER, pass: CONTACT_APP_PASS },
+    auth: { user: EMAIL_USER, pass: EMAIL_APP_PASSWORD },
   });
   return contactTransporter;
 }
@@ -150,8 +152,8 @@ app.post('/contact', corsMW, async (req, res) => {
     transporter.verify().catch(() => {});
 
     await transporter.sendMail({
-      from: `"AKO Contact" <${CONTACT_EMAIL_USER}>`,
-      to: CONTACT_TO_EMAIL,
+      from: `"AKO Contact" <${EMAIL_USER}>`,
+      to: TO_EMAIL,
       replyTo: email,
       subject: `New message from ${name}`,
       text: message,
@@ -169,82 +171,79 @@ app.post('/contact', corsMW, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// Stripe: Create Checkout Session
+// Stripe: Create Checkout Session  (only if Stripe is configured)
 // ─────────────────────────────────────────────────────────────
-app.post('/create-checkout-session', async (req, res) => {
-  try {
-    const { items = [], customer } = req.body || {};
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'No items in request.' });
+if (stripe) {
+  app.post('/create-checkout-session', async (req, res) => {
+    try {
+      const { items = [], customer } = req.body || {};
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'No items in request.' });
+      }
+
+      const line_items = items.map(i => ({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: i.name },
+          unit_amount: i.price, // cents
+        },
+        quantity: i.quantity,
+        adjustable_quantity: { enabled: true, minimum: 1, maximum: 10 },
+      }));
+
+      const successUrl = `${PUBLIC_BASE_URL}/success.html?paid=1&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl  = exists(shopFile)
+        ? `${PUBLIC_BASE_URL}/shop.html?canceled=1`
+        : `${PUBLIC_BASE_URL}/success.html?canceled=1`;
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items,
+        customer_email: customer?.email,
+        shipping_address_collection: { allowed_countries: ['US','CA','GB','AU','JP','DE','FR','MX','SG'] },
+        success_url: successUrl,
+        cancel_url:  cancelUrl,
+      });
+
+      res.json({ url: session.url });
+    } catch (e) {
+      console.error('Stripe error:', e);
+      res.status(500).json({ error: e?.raw?.message || e.message || 'Unable to create checkout session' });
     }
+  });
 
-    const line_items = items.map(i => ({
-      price_data: {
-        currency: 'usd',
-        product_data: { name: i.name },
-        unit_amount: i.price, // cents
-      },
-      quantity: i.quantity,
-      adjustable_quantity: { enabled: true, minimum: 1, maximum: 10 },
-    }));
+  // Confirm Order (no webhook) → send emails
+  const emailedSessions = new Set();
+  function tryGetMailer() { try { return getTransporter(); } catch { return null; } }
 
-    const successUrl = `${PUBLIC_BASE_URL}/success.html?paid=1&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl  = exists(shopFile)
-      ? `${PUBLIC_BASE_URL}/shop.html?canceled=1`
-      : `${PUBLIC_BASE_URL}/success.html?canceled=1`;
+  app.get('/api/confirm-order', async (req, res) => {
+    try {
+      const session_id = req.query.session_id || req.query.sessionId;
+      if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items,
-      customer_email: customer?.email,
-      shipping_address_collection: { allowed_countries: ['US','CA','GB','AU','JP','DE','FR','MX','SG'] },
-      success_url: successUrl,
-      cancel_url:  cancelUrl,
-    });
+      const session = await stripe.checkout.sessions.retrieve(session_id, {
+        expand: ['line_items', 'customer_details'],
+      });
 
-    res.json({ url: session.url });
-  } catch (e) {
-    console.error('Stripe error:', e);
-    res.status(500).json({ error: e?.raw?.message || e.message || 'Unable to create checkout session' });
-  }
-});
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
+      }
 
-// ─────────────────────────────────────────────────────────────
-// Confirm Order (no webhook) → send emails
-// ─────────────────────────────────────────────────────────────
-const emailedSessions = new Set();
-function tryGetMailer() {
-  try { return getTransporter(); } catch { return null; }
-}
+      const mailer = tryGetMailer();
+      if (mailer && !emailedSessions.has(session_id)) {
+        const items = session.line_items?.data || [];
+        const customerEmail = session.customer_details?.email || session.customer_email;
+        const name = session.customer_details?.name || 'Customer';
+        const amountTotal = (session.amount_total || 0) / 100;
+        const currency = (session.currency || 'usd').toUpperCase();
 
-app.get('/api/confirm-order', async (req, res) => {
-  try {
-    const session_id = req.query.session_id || req.query.sessionId;
-    if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
+        const list = items.map(i => {
+          const unit = (i.price?.unit_amount || 0) / 100;
+          const desc = i.description || i.price?.product || 'Item';
+          return `• ${desc} — ${i.quantity} × $${unit.toFixed(2)}`;
+        }).join('\n');
 
-    const session = await stripe.checkout.sessions.retrieve(session_id, {
-      expand: ['line_items', 'customer_details'],
-    });
-
-    if (session.payment_status !== 'paid') {
-      return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
-    }
-
-    const mailer = tryGetMailer(); // FIX: was undefined before
-    if (mailer && !emailedSessions.has(session_id)) {
-      const items = session.line_items?.data || [];
-      const customerEmail = session.customer_details?.email || session.customer_email;
-      const name = session.customer_details?.name || 'Customer';
-      const amountTotal = (session.amount_total || 0) / 100;
-      const currency = (session.currency || 'usd').toUpperCase();
-
-      const list = items.map(i => {
-        const unit = (i.price?.unit_amount || 0) / 100;
-        const desc = i.description || i.price?.product || 'Item';
-        return `• ${desc} — ${i.quantity} × $${unit.toFixed(2)}`;
-      }).join('\n');
-
-      const receiptText = `Thanks for your order, ${name}!
+        const receiptText = `Thanks for your order, ${name}!
 
 Order Summary
 ${list || '(no items?)'}
@@ -253,37 +252,38 @@ Total: $${amountTotal.toFixed(2)} ${currency}
 
 — AKO by Lee`;
 
-      if (customerEmail) {
+        if (customerEmail) {
+          await mailer.sendMail({
+            from: EMAIL_USER,
+            to: customerEmail,
+            subject: 'AKO by Lee — Order Confirmation',
+            text: receiptText,
+          });
+        }
+
         await mailer.sendMail({
           from: EMAIL_USER,
-          to: customerEmail,
-          subject: 'AKO by Lee — Order Confirmation',
-          text: receiptText,
-        });
-      }
-
-      await mailer.sendMail({
-        from: EMAIL_USER,
-        to: TO_EMAIL || EMAIL_USER,
-        subject: `New Order — ${customerEmail || name}`,
-        text: `Session: ${session.id}
+          to: TO_EMAIL || EMAIL_USER,
+          subject: `New Order — ${customerEmail || name}`,
+          text: `Session: ${session.id}
 Email: ${customerEmail || 'N/A'}
 Name: ${name}
 Total: $${amountTotal.toFixed(2)} ${currency}
 
 Items:
 ${list || '(no items?)'}`,
-      });
+        });
 
-      emailedSessions.add(session_id);
+        emailedSessions.add(session_id);
+      }
+
+      res.json({ ok: true, emailed: true });
+    } catch (err) {
+      console.error('Confirm-order error:', err);
+      res.status(500).json({ error: err.message });
     }
-
-    res.json({ ok: true, emailed: true });
-  } catch (err) {
-    console.error('Confirm-order error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // Inventory API (atomic decrement, no replica set required)
