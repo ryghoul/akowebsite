@@ -1,0 +1,331 @@
+/* =========================================================
+   AKO — index.css
+   Styles specific to index.html (landing + home screen).
+   Depends on style.css being loaded first.
+   ========================================================= */
+
+/* ── Background video ── */
+.bg-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -3;
+  will-change: transform;
+}
+
+/* ── Home shell ── */
+.home {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--beige);
+}
+
+.home[aria-hidden="false"] {
+  pointer-events: auto;
+}
+
+/* ── Home nav bar ── */
+.home-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pad) var(--pad) clamp(16px, 2.5vw, 28px);
+  min-height: var(--nav-height);
+  flex-shrink: 0;
+  overflow: hidden;
+  border-bottom: none;
+}
+
+/* ── Hide logo line until site is entered ── */
+.home[aria-hidden="true"] .logo-line {
+  display: none;
+}
+
+.nav-logo-slot {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  min-width: 80px;
+}
+
+.nav-logo--static {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.nav-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: clamp(24px, 4vw, 60px);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.nav-links.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nav-links li {
+  position: relative;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--wine);
+  opacity: 0.65;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  transition: opacity 0.2s;
+}
+
+.nav-links a:hover {
+  opacity: 1;
+}
+
+.nav-links a svg {
+  display: block;
+  width: 34px;
+  height: 34px;
+}
+
+/* ── Logo button (drawer trigger) ── */
+.logo-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 56px;
+  width: auto;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.logo-img {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.76, 0, 0.24, 1);
+  transform-origin: left center;
+}
+
+.logo-line {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--ako-bright-red);
+  border-radius: 999px;
+  transition: height 0.38s cubic-bezier(0.76, 0, 0.24, 1) 0.1s;
+  pointer-events: none;
+}
+
+/* ── Home content (hub wrapper) ── */
+.home-content {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--nav-height);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.55s ease 0.1s, transform 0.55s ease 0.1s;
+}
+
+.home-content.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Hub ── */
+.hub {
+  position: relative;
+  width: clamp(340px, 55vmin, 580px);
+  height: clamp(340px, 55vmin, 580px);
+  will-change: transform;
+}
+
+.hub-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hub-mascot {
+  width: 48%;
+  height: 48%;
+  object-fit: contain;
+  animation: float 5s ease-in-out infinite;
+  filter: drop-shadow(0 10px 28px rgba(85,11,20,0.15));
+}
+
+/* Faint orbit ring */
+.hub::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(85,11,20,0.18);
+  pointer-events: none;
+}
+
+/* ── Orbit links ── */
+.orbit-link {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-decoration: none;
+  font-size: clamp(0.75rem, 1.1vw, 0.9rem);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--wine);
+  padding: 8px 20px;
+  border: 1.5px solid var(--wine);
+  border-radius: 999px;
+  background: rgba(248,248,247,0.7);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  transition: background 0.22s, color 0.22s, transform 0.22s, box-shadow 0.22s;
+  opacity: 0;
+  animation: orbitFadeIn 0.5s ease forwards;
+}
+
+.orbit-link:hover {
+  background: var(--wine);
+  color: var(--ivory);
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow: 0 4px 18px rgba(85,11,20,0.22);
+}
+
+@keyframes orbitFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ── Landing screen ── */
+.landing {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  padding: var(--pad);
+}
+
+.mascot-stage {
+  position: relative;
+  width: clamp(180px, 28vw, 320px);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.landing-mascot {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  animation: float 5s ease-in-out infinite;
+  filter: drop-shadow(0 12px 32px rgba(85,11,20,0.18));
+}
+
+/* ── Entry button ── */
+.entry-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.2s ease;
+}
+
+.entry-btn:hover   { opacity: 0.85; }
+.entry-btn:active  { opacity: 0.6; }
+.entry-btn:disabled { cursor: default; opacity: 1; }
+
+.stencil {
+  display: block;
+  width: clamp(200px, 30vw, 280px);
+  height: auto;
+  max-height: 150px;
+  object-fit: contain;
+}
+
+.headline-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  clip-path: inset(0 0% 0 0);
+}
+
+.headline-wrap.wipe-out {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.45s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.headline {
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: var(--ako-bright-red);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.rule {
+  width: min(260px, 70vw);
+  height: 3px;
+  background: var(--ako-bright-red);
+  border-radius: 999px;
+  margin: 0;
+  transition: width 0.3s ease;
+}
+
+.entry-btn:not(:disabled):hover .rule { width: min(310px, 80vw); }
+
+/* ── Reduced motion overrides (index-specific) ── */
+@media (prefers-reduced-motion: reduce) {
+  .headline-wrap,
+  .headline-wrap.wipe-out,
+  .nav-links,
+  .home-content { transition: none !important; }
+  .nav-links, .home-content { opacity: 1; transform: none; }
+  .hub-mascot { animation: none; }
+}

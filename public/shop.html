@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shop — AKO</title>
+  <link href="https://db.onlinewebfonts.com/c/c68fb16e57664067d2e22348bfb48556?family=CCBrianBollandJournal+W00+Rg" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="shop.css" />
+</head>
+<body>
+  <!-- =============================================
+     FULL NAVBAR
+     ============================================= -->
+
+<!-- Nav click-outside overlay -->
+<div class="nav-overlay" id="navOverlay"></div>
+ 
+<!-- Cart overlay -->
+<div class="cart-overlay" id="cartOverlay"></div>
+ 
+<!-- Left nav drawer -->
+<nav class="nav-drawer" id="navDrawer" aria-hidden="true" aria-label="Site navigation">
+  <ul class="nav-drawer-list">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="shop.html">Shop</a></li>
+    <li><a href="menu.html">Menu</a></li>
+    <li><a href="our-story.html">Our Story</a></li>
+    <li><a href="reservation.html">Reservation</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+</nav>
+ 
+<!-- Right cart drawer -->
+<aside class="cart-drawer" id="cartDrawer" aria-label="Shopping cart">
+  <div class="cart-header">
+    <div>
+      <h2 class="cart-title">Cart</h2>
+      <div class="cart-count" id="cartCount"></div>
+    </div>
+    <button class="cart-close-btn" id="cartClose">close ×</button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-footer">
+    <div class="cart-subtotal">
+      <span class="cart-subtotal-label">Subtotal</span>
+      <span class="cart-subtotal-amount" id="cartTotal">$0.00</span>
+    </div>
+    <p class="cart-note">Shipping &amp; taxes calculated at checkout.</p>
+    <button class="cart-checkout-btn" id="cartCheckoutBtn" disabled>Checkout</button>
+  </div>
+</aside>
+ 
+<!-- NAV BAR -->
+<div class="home" id="home">
+  <nav class="home-nav">
+    <div class="nav-logo-slot" id="navLogoSlot">
+      <button class="logo-btn" id="logoBtn" aria-label="Open navigation" aria-expanded="false">
+        <img src="Pictures/AKO STENILS.svg" alt="AKO" class="logo-img" />
+        <span class="logo-line" aria-hidden="true"></span>
+      </button>
+    </div>
+    <ul class="nav-links" id="navLinks">
+      <li>
+        <a href="https://www.instagram.com/_.akobylee/" aria-label="Instagram">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#550b14"/></svg>
+        </a>
+      </li>
+      <li>
+        <a href="https://www.tiktok.com/@_.akobylee" aria-label="TikTok">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/></svg>
+        </a>
+      </li>
+      <li>
+        <button class="nav-cart-btn" id="cartBtn" aria-label="Open cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6z"/>
+          </svg>
+          <span class="cart-badge" id="cartBadge">0</span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+    <!-- =============================================
+     SHOP CONTENT
+     ============================================= -->
+  <main class="shop-wrap">
+
+    <div class="shop-hero">
+      <span class="shop-label">Wear the ritual</span>
+      <h1 class="shop-title">Shop</h1>
+      <p class="shop-sub">Limited merch. Made to move with you.</p>
+    </div>
+
+    <!-- Filter row -->
+    <div class="filter-row">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="shirts">Shirts</button>
+      <button class="filter-btn" data-filter="bags">Bags</button>
+      <button class="filter-btn" data-filter="bandanas">Bandanas</button>
+    </div>
+
+    <!-- ── SHIRTS ── -->
+    <section class="shop-section" id="sec-shirts">
+      <div class="section-label">Shirts</div>
+      <div class="shirts-grid">
+
+        <!-- Shirt V1 -->
+        <div class="shirt-card" data-product="shirt|V1">
+          <div class="shirt-visual">
+            <img src="Pictures/merch/shirt4.png" alt="Oh no, my matcha! Boxy Tee V.1" class="shirt-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="shirt-placeholder">👕</div>
+            <div class="shirt-tag">Faded Bone</div>
+            <div class="shirt-overlay">
+              <div class="overlay-name">"Oh no, my matcha!"<br>Boxy Tee V.1</div>
+              <div class="overlay-price">$30</div>
+              <div class="size-row">
+                <button class="sz active" data-size="S" data-sku="shirt|V1|S">S</button>
+                <button class="sz" data-size="M" data-sku="shirt|V1|M">M</button>
+                <button class="sz" data-size="L" data-sku="shirt|V1|L">L</button>
+                <button class="sz" data-size="XL" data-sku="shirt|V1|XL">XL</button>
+              </div>
+              <div class="stock-status" id="stock-shirt-V1"></div>
+              <button class="overlay-btn add-to-cart" data-product="shirt|V1">Add to cart</button>
+            </div>
+          </div>
+          <div class="shirt-info">
+            <span class="shirt-name">"Oh no, my matcha!" Boxy Tee V.1</span>
+            <span class="shirt-price">$30</span>
+          </div>
+        </div>
+
+        <!-- Shirt V2 -->
+        <div class="shirt-card" data-product="shirt|V2">
+          <div class="shirt-visual">
+            <img src="Pictures/merch/shirt5.png" alt="Oh no, my matcha! Boxy Tee V.2" class="shirt-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="shirt-placeholder">👚</div>
+            <div class="shirt-tag">Faded Bone</div>
+            <div class="shirt-overlay">
+              <div class="overlay-name">"Oh no, my matcha!"<br>Boxy Tee V.2</div>
+              <div class="overlay-price">$30</div>
+              <div class="size-row">
+                <button class="sz active" data-size="S" data-sku="shirt|V2|S">S</button>
+                <button class="sz" data-size="M" data-sku="shirt|V2|M">M</button>
+                <button class="sz" data-size="L" data-sku="shirt|V2|L">L</button>
+                <button class="sz" data-size="XL" data-sku="shirt|V2|XL">XL</button>
+              </div>
+              <div class="stock-status" id="stock-shirt-V2"></div>
+              <button class="overlay-btn add-to-cart" data-product="shirt|V2">Add to cart</button>
+            </div>
+          </div>
+          <div class="shirt-info">
+            <span class="shirt-name">"Oh no, my matcha!" Boxy Tee V.2</span>
+            <span class="shirt-price">$30</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── BAGS ── -->
+    <section class="shop-section" id="sec-bags">
+      <div class="section-label">Bags</div>
+      <div class="bags-grid">
+
+        <!-- Tote Black -->
+        <div class="bag-card" data-sku="tote|Black|NOSIZE">
+          <div class="bag-visual" style="background:rgba(26,26,26,0.1)">
+            <div class="bag-color-strip" style="background:#1a1a1a"></div>
+            <img src="Pictures/merch/blacktote.png" alt="AKO* Tea Bag Black" class="bag-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+            <span class="bag-placeholder">🛍</span>
+          </div>
+          <div class="bag-body">
+            <div class="bag-name">AKO* Tea Bag</div>
+            <div class="bag-desc">Black colorway. Heavy canvas with AKO stamp. Structured base, wide shoulder straps.</div>
+            <div class="bag-stock-row">
+              <span class="stock-badge" id="stock-tote-Black"></span>
+            </div>
+          </div>
+          <div class="bag-action">
+            <div class="bag-price">$35</div>
+            <button class="bag-btn add-to-cart" data-sku="tote|Black|NOSIZE">Add to cart</button>
+          </div>
+        </div>
+
+        <!-- Tote Green -->
+        <div class="bag-card" data-sku="tote|Green|NOSIZE">
+          <div class="bag-visual" style="background:rgba(45,74,45,0.13)">
+            <div class="bag-color-strip" style="background:#2d4a2d"></div>
+            <img src="Pictures/merch/greentote.png" alt="AKO* Tea Bag Green" class="bag-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+            <span class="bag-placeholder">🛍</span>
+          </div>
+          <div class="bag-body">
+            <div class="bag-name">AKO* Tea Bag</div>
+            <div class="bag-desc">Green colorway. Heavy canvas with AKO stamp. Structured base, wide shoulder straps.</div>
+            <div class="bag-stock-row">
+              <span class="stock-badge" id="stock-tote-Green"></span>
+            </div>
+          </div>
+          <div class="bag-action">
+            <div class="bag-price">$35</div>
+            <button class="bag-btn add-to-cart" data-sku="tote|Green|NOSIZE">Add to cart</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── BANDANAS ── -->
+    <section class="shop-section" id="sec-bandanas">
+      <div class="section-label">Bandanas — S.2</div>
+      <div class="bandana-grid">
+
+        <!-- MORE TEA -->
+        <div class="bandana-card" data-sku="bandana|MORE TEA|NOSIZE">
+          <div class="bandana-visual" style="background:#e8e0d4">
+            <img src="Pictures/merch/moretea.png" alt="MORE TEA bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="bandana-bg">
+              <div class="bandana-diamond" style="background:#1a1a1a"></div>
+            </div>
+          </div>
+          <div class="bandana-body">
+            <div class="bandana-name">MORE TEA</div>
+            <div class="bandana-desc">AKO* Bandana S.2 — Black colorway.</div>
+            <div class="bandana-footer">
+              <div>
+                <span class="bandana-price">$20 <span class="presale-tag">presale</span></span>
+                <span class="stock-badge" id="stock-bandana-MORE-TEA"></span>
+              </div>
+              <button class="bandana-btn add-to-cart" data-sku="bandana|MORE TEA|NOSIZE">Add to cart</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERFORMATIVE -->
+        <div class="bandana-card" data-sku="bandana|PERFORMATIVE|NOSIZE">
+          <div class="bandana-visual" style="background:#550b14">
+            <img src="Pictures/merch/performative.png" alt="PERFORMATIVE bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="bandana-bg">
+              <div class="bandana-diamond" style="background:#cbc0b2"></div>
+            </div>
+          </div>
+          <div class="bandana-body">
+            <div class="bandana-name">PERFORMATIVE</div>
+            <div class="bandana-desc">AKO* Bandana S.2 — Matcha design.</div>
+            <div class="bandana-footer">
+              <div>
+                <span class="bandana-price">$20 <span class="presale-tag">presale</span></span>
+                <span class="stock-badge" id="stock-bandana-PERFORMATIVE"></span>
+              </div>
+              <button class="bandana-btn add-to-cart" data-sku="bandana|PERFORMATIVE|NOSIZE">Add to cart</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- REACH -->
+        <div class="bandana-card" data-sku="bandana|REACH|NOSIZE">
+          <div class="bandana-visual" style="background:#cbc0b2">
+            <img src="Pictures/merch/reach.png" alt="REACH bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <div class="bandana-bg">
+              <div class="bandana-diamond" style="background:#550b14"></div>
+            </div>
+          </div>
+          <div class="bandana-body">
+            <div class="bandana-name">REACH</div>
+            <div class="bandana-desc">AKO* Bandana S.2 — Hand design.</div>
+            <div class="bandana-footer">
+              <div>
+                <span class="bandana-price">$20 <span class="presale-tag">presale</span></span>
+                <span class="stock-badge" id="stock-bandana-REACH"></span>
+              </div>
+              <button class="bandana-btn add-to-cart" data-sku="bandana|REACH|NOSIZE">Add to cart</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+    <!-- =============================================
+     FOOTER
+     ============================================= -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <p class="footer-tagline">Make tea a part of your ritual.</p>
+        <div class="footer-socials">
+          <a href="https://www.instagram.com/_.akobylee/" aria-label="Instagram">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+            </svg>
+          </a>
+          <a href="https://www.tiktok.com/@_.akobylee" aria-label="TikTok">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      <div class="footer-center">
+        <img src="Pictures/AKO STENILS.svg" alt="AKO" class="footer-logo" />
+      </div>
+      <div class="footer-right">
+        <p class="footer-motto">A warmth in<br>every cup.</p>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /.home -->
+
+<script src="script.js"></script>
+<script src="shop.js"></script>
+</body>
+</html>

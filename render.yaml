@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ako-site
+    runtime: node
+    rootDir: .
+    buildCommand: npm install
+    startCommand: node server.js
+
+    # Persistent disk for uploaded images + data
+    disk:
+      name: ako-uploads
+      mountPath: /opt/render/project/src/public/Pictures
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_PASSWORD
+        generateValue: false   # Set this manually in Render dashboard
+        # Go to: Render dashboard → your service → Environment → Add variable
+        # Key: ADMIN_PASSWORD   Value: your chosen password
+      - key: SESSION_SECRET
+        generateValue: true    # Render auto-generates a secure random value

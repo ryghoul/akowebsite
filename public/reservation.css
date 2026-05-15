@@ -1,0 +1,101 @@
+/* =========================================================
+   reservation.css — Reservation page styles
+   Requires: style.css
+   ========================================================= */
+
+/* ─────────────────────────────────────────────
+   FIX: override index scroll lock
+───────────────────────────────────────────── */
+html, body {
+  overflow: auto !important;
+  height: auto !important;
+}
+
+/* ─────────────────────────────────────────────
+   PAGE LAYOUT
+───────────────────────────────────────────── */
+.reservation-wrap {
+  flex: 1;
+  max-width: var(--maxw);
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(40px, 6vw, 80px) var(--pad);
+  padding-bottom: 0;
+}
+
+/* ─────────────────────────────────────────────
+   HERO
+───────────────────────────────────────────── */
+.reservation-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: clamp(36px, 5vw, 56px);
+  border-bottom: 3px solid var(--ako-bright-red);
+  padding-bottom: clamp(24px, 4vw, 40px);
+}
+
+.reservation-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  font-weight: 600;
+}
+
+.reservation-title {
+  font-family: var(--headline-font);
+  font-size: clamp(2.4rem, 6vw, 5rem);
+  line-height: 1;
+  color: var(--ako-bright-red);
+  margin: 0;
+}
+
+.reservation-sub {
+  font-size: clamp(0.9rem, 1.3vw, 1.05rem);
+  color: var(--taupe);
+  margin: 8px 0 0;
+  max-width: 520px;
+  line-height: 1.6;
+}
+
+/* ─────────────────────────────────────────────
+   CALENDLY WIDGET WRAPPER
+───────────────────────────────────────────── */
+.calendly-wrap {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid rgba(85, 11, 20, 0.12);
+  background: var(--ivory);
+  /* Give it a generous fixed height — Calendly needs explicit height to render */
+  min-height: 700px;
+}
+
+.calendly-inline-widget {
+  width: 100% !important;
+  min-height: 700px !important;
+  height: 700px !important;
+}
+
+.calendly-inline-widget iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+  display: block;
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .calendly-wrap {
+    border-radius: 8px;
+    min-height: 600px;
+  }
+
+  .calendly-inline-widget {
+    min-height: 600px !important;
+    height: 600px !important;
+  }
+}

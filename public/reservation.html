@@ -3,16 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AKO</title>
-  <link href="https://db.onlinewebfonts.com/c/c68fb16e57664067d2e22348bfb48556?family=CCBrianBollandJournal+W00+Rg" rel="stylesheet">
+  <title>Reservation — AKO</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="index.css" />
+  <link rel="stylesheet" href="reservation.css" />
 </head>
 <body>
-
-<video class="bg-video" autoplay muted loop playsinline>
-  <!-- <source src="Videos/backgroundloop.mp4" type="video/mp4" /> -->
-</video>
 
   <!-- =============================================
      FULL NAVBAR
@@ -89,45 +84,60 @@
     </ul>
   </nav>
 
+
   <!-- =============================================
-     HOME PAGE
-     ============================================= -->
-  <div class="home-content" id="homeContent">
+       RESERVATION CONTENT
+       ============================================= -->
+  <main class="reservation-wrap">
 
-    <!-- Single mascot at center, links orbiting around it -->
-    <div class="hub" id="hub">
-      <div class="hub-center">
-        <img src="Pictures/akomascot.svg" alt="AKO Mascot" class="hub-mascot" />
+    <div class="reservation-hero">
+      <span class="reservation-label">Book a visit</span>
+      <h1 class="reservation-title">Reservation</h1>
+      <p class="reservation-sub">We can't wait to serve you. Pick a time that works and we'll have everything ready.</p>
+    </div>
+
+    <!-- Calendly widget -->
+    <div class="calendly-wrap">
+      <div
+        class="calendly-inline-widget"
+        data-url="https://calendly.com/napppy-lee?hide_landing_page_details=1&hide_gdpr_banner=1&primary_color=550b14"
+      ></div>
+      <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <p class="footer-tagline">Make tea a part of your ritual.</p>
+        <div class="footer-socials">
+          <a href="https://www.instagram.com/_.akobylee/" aria-label="Instagram">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+            </svg>
+          </a>
+          <a href="https://www.tiktok.com/@_.akobylee" aria-label="TikTok">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/>
+            </svg>
+          </a>
+        </div>
       </div>
-      <a href="shop.html" class="orbit-link">Shop</a>
-      <a href="menu.html" class="orbit-link">Menu</a>
-      <a href="our-story.html" class="orbit-link">Our Story</a>
-      <a href="reservation.html" class="orbit-link">Reservation</a>
-      <a href="about.html" class="orbit-link">About</a>
-      <a href="contact.html" class="orbit-link">Contact</a>
+      <div class="footer-center">
+        <img src="Pictures/AKO STENILS.svg" alt="AKO" class="footer-logo" />
+      </div>
+      <div class="footer-right">
+        <p class="footer-motto">A warmth in<br>every cup.</p>
+      </div>
     </div>
+  </footer>
 
-  </div>
+</div><!-- /.home -->
 
-</div>
-
-<!-- =============================================
-     LANDING SCREEN
-     ============================================= -->
-<main class="landing" id="landing">
-
-  <button class="entry-btn" id="enterBtn" aria-label="Enter the AKO site">
-    <img class="stencil" id="flyingLogo" src="Pictures/AKO STENILS.svg" alt="AKO Stencil Logo">
-    <div class="headline-wrap" id="headlineWrap">
-      <h1 class="headline">ENTER OUR SITE</h1>
-      <div class="rule" aria-hidden="true"></div>
-    </div>
-  </button>
-</main>
-
-<!-- style.css + script.js load on every page -->
 <script src="script.js"></script>
-<!-- index.js is only loaded here -->
-<script src="index.js"></script>
 </body>
 </html>

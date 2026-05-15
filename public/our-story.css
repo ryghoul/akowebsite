@@ -1,0 +1,103 @@
+/* =========================================================
+   our-story.css — two-column story layout
+   Requires: style.css
+   ========================================================= */
+
+.wip-wrap {
+  min-height: calc(100vh - var(--nav-height) - 130px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(60px, 8vw, 120px) var(--pad);
+  text-align: center;
+}
+
+.wip-card {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+
+.wip-card .page-label,
+.wip-card .page-title,
+.wip-card .page-sub,
+.wip-note {
+  color: var(--ako-bright-red);
+}
+
+.wip-card .page-label {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.wip-card .page-title {
+  font-family: var(--headline-font);
+  font-size: clamp(3rem, 8vw, 7rem);
+  line-height: 0.95;
+  margin: 0 0 20px;
+}
+
+.wip-card .page-sub {
+  max-width: 620px;
+  margin: 0 auto;
+  line-height: 1.7;
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+}
+
+.wip-divider {
+  width: 90px;
+  height: 3px;
+  background: var(--ako-bright-red);
+  margin: 34px auto;
+  border-radius: 999px;
+}
+
+.wip-note {
+  margin: 0 0 28px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.wip-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.wip-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  padding: 12px 28px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ako-bright-red);
+  background: var(--ako-bright-red);
+  color: var(--ivory);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.wip-actions .btn:hover {
+  transform: translateY(-2px);
+  background: transparent;
+  color: var(--ako-bright-red);
+}
+
+.wip-actions .btn.secondary {
+  background: transparent;
+  color: var(--ako-bright-red);
+}
+
+.wip-actions .btn.secondary:hover {
+  background: var(--ako-bright-red);
+  color: var(--ivory);
+}

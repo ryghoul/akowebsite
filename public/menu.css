@@ -1,0 +1,392 @@
+/* =========================================================
+   menu.css — Menu page styles
+   Requires: style.css
+   ========================================================= */
+
+/* ─────────────────────────────────────────────
+   FIX: override index scroll lock for inner pages
+───────────────────────────────────────────── */
+html, body {
+  overflow: auto !important;
+  height: auto !important;
+  overflow-x: hidden;
+}
+
+
+/* ─────────────────────────────────────────────
+   PAGE LAYOUT
+───────────────────────────────────────────── */
+.menu-wrap {
+  flex: 1;
+  max-width: var(--maxw);
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(40px, 6vw, 80px) var(--pad);
+}
+
+/* ─────────────────────────────────────────────
+   HERO
+───────────────────────────────────────────── */
+.menu-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: clamp(40px, 6vw, 72px);
+  border-bottom: 3px solid var(--ako-bright-red);
+  padding-bottom: clamp(24px, 4vw, 40px);
+}
+
+.menu-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  font-weight: 600;
+}
+
+.menu-title {
+  font-family: var(--headline-font);
+  font-size: clamp(2.4rem, 6vw, 5rem);
+  line-height: 1;
+  color: var(--ako-bright-red);
+  margin: 0;
+}
+
+.menu-sub {
+  font-size: clamp(0.9rem, 1.3vw, 1.05rem);
+  color: var(--taupe);
+  margin: 8px 0 0;
+  max-width: 520px;
+  line-height: 1.6;
+}
+
+/* ─────────────────────────────────────────────
+   MENU SECTIONS
+───────────────────────────────────────────── */
+.menu-section {
+  margin-bottom: clamp(40px, 6vw, 64px);
+}
+
+.menu-section-title {
+  font-family: var(--headline-font);
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  color: var(--ako-bright-red);
+  margin: 0 0 4px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid rgba(85, 11, 20, 0.2);
+}
+
+/* ─────────────────────────────────────────────
+   MENU ROWS (clickable)
+───────────────────────────────────────────── */
+.mrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(85, 11, 20, 0.08);
+  cursor: pointer;
+  gap: 12px;
+  transition: background 0.18s ease, padding-left 0.2s ease;
+}
+
+.mrow:last-child { border-bottom: none; }
+
+.mrow:hover {
+  padding-left: 10px;
+  background: rgba(248, 248, 247, 0.5);
+}
+
+.mrow:hover .mrow-name { color: var(--ako-bright-red); }
+
+.mrow-left { flex: 1; }
+
+.mrow-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--wine);
+  transition: color 0.18s ease;
+}
+
+.mrow-desc {
+  font-size: 0.82rem;
+  color: var(--taupe);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.mrow-price {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--wine);
+  white-space: nowrap;
+}
+
+.mrow-arrow {
+  font-size: 12px;
+  color: var(--taupe);
+  margin-left: 4px;
+  opacity: 0;
+  display: inline-block;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.mrow:hover .mrow-arrow {
+  opacity: 1;
+  transform: translateX(4px);
+}
+
+/* ─────────────────────────────────────────────
+   ADD-ONS NOTE
+───────────────────────────────────────────── */
+.menu-addons {
+  font-size: 0.82rem;
+  color: var(--taupe);
+  margin-top: 8px;
+  padding-bottom: clamp(40px, 6vw, 80px);
+}
+
+/* ─────────────────────────────────────────────
+   MODAL OVERLAY
+───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(85, 11, 20, 0.55);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.32s ease;
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background: var(--ivory);
+  width: clamp(300px, 90%, 480px);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  opacity: 0;
+  transform: translateY(28px) scale(0.96);
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity   0.32s ease;
+}
+
+.modal-overlay.open .modal-card {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.modal-img-wrap {
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  position: relative;
+  background: var(--beige);
+}
+
+.modal-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scale(1.06);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal-overlay.open .modal-img-wrap img { transform: scale(1); }
+
+.modal-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 40%, rgba(85, 11, 20, 0.3));
+  pointer-events: none;
+}
+
+.modal-num {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 12px;
+  color: var(--ivory);
+  letter-spacing: 2px;
+  opacity: 0.85;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 10;
+  background: rgba(85, 11, 20, 0.55);
+  border: none;
+  color: var(--ivory);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 2px;
+  transition: background 0.18s ease;
+}
+
+.modal-close:hover { background: var(--wine); }
+
+.modal-body { padding: 24px 28px 28px; }
+
+.modal-cat {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--taupe);
+  margin-bottom: 6px;
+}
+
+.modal-name {
+  font-family: var(--headline-font);
+  font-size: 2rem;
+  color: var(--wine);
+  line-height: 1.05;
+  margin-bottom: 4px;
+}
+
+.modal-price {
+  font-size: 13px;
+  color: var(--taupe);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.modal-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(85, 11, 20, 0.12);
+  margin-bottom: 16px;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.modal-field-label {
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--taupe);
+  margin-bottom: 5px;
+}
+
+.modal-field-val {
+  font-size: 13px;
+  color: var(--wine);
+  line-height: 1.55;
+}
+
+.modal-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.modal-profile-key {
+  font-size: 11px;
+  color: var(--taupe);
+  min-width: 58px;
+}
+
+.modal-dots { display: flex; gap: 4px; }
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--wine);
+}
+
+.dot.empty {
+  background: transparent;
+  border: 1px solid var(--taupe);
+}
+
+.modal-note {
+  font-family: var(--headline-font);
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--taupe);
+  line-height: 1.65;
+  padding-top: 14px;
+  border-top: 1px solid rgba(85, 11, 20, 0.1);
+}
+
+/* -----------ACCENT ------------*/
+.menu-wrap {
+  position: relative;
+  overflow: visible;
+}
+
+.menu-accent {
+  position: absolute;
+
+  /* pushes it OUTSIDE the content area */
+  right: -400px;
+  top: 120px;
+
+  /* makes it huge */
+  width: clamp(300px, 30vw, 760px);
+
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* keep actual menu content above it */
+.menu-hero,
+.menu-section,
+.menu-addons {
+  position: relative;
+  z-index: 2;
+}
+
+/* mobile */
+@media (max-width: 1200px) {
+  .menu-accent {
+    right: -240px;
+    width: 520px;
+    opacity: 0.28;
+  }
+}
+
+@media (max-width: 720px) {
+  .menu-accent {
+    display: none;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .modal-grid     { grid-template-columns: 1fr; }
+  .modal-body     { padding: 20px 20px 24px; }
+  .modal-name     { font-size: 1.6rem; }
+
+  .footer-inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .footer-socials { justify-content: center; }
+  .footer-right   { text-align: center; }
+}

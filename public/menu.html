@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Menu — AKO</title>
+  <link href="https://db.onlinewebfonts.com/c/c68fb16e57664067d2e22348bfb48556?family=CCBrianBollandJournal+W00+Rg" rel="stylesheet">  
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="menu.css" />
+</head>
+<body>
+
+  <!-- =============================================
+     FULL NAVBAR
+     ============================================= -->
+
+<!-- Nav click-outside overlay -->
+<div class="nav-overlay" id="navOverlay"></div>
+ 
+<!-- Cart overlay -->
+<div class="cart-overlay" id="cartOverlay"></div>
+ 
+<!-- Left nav drawer -->
+<nav class="nav-drawer" id="navDrawer" aria-hidden="true" aria-label="Site navigation">
+  <ul class="nav-drawer-list">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="shop.html">Shop</a></li>
+    <li><a href="menu.html">Menu</a></li>
+    <li><a href="our-story.html">Our Story</a></li>
+    <li><a href="reservation.html">Reservation</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+</nav>
+ 
+<!-- Right cart drawer -->
+<aside class="cart-drawer" id="cartDrawer" aria-label="Shopping cart">
+  <div class="cart-header">
+    <div>
+      <h2 class="cart-title">Cart</h2>
+      <div class="cart-count" id="cartCount"></div>
+    </div>
+    <button class="cart-close-btn" id="cartClose">close ×</button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-footer">
+    <div class="cart-subtotal">
+      <span class="cart-subtotal-label">Subtotal</span>
+      <span class="cart-subtotal-amount" id="cartTotal">$0.00</span>
+    </div>
+    <p class="cart-note">Shipping &amp; taxes calculated at checkout.</p>
+    <button class="cart-checkout-btn" id="cartCheckoutBtn" disabled>Checkout</button>
+  </div>
+</aside>
+ 
+<!-- NAV BAR -->
+<div class="home" id="home">
+  <nav class="home-nav">
+    <div class="nav-logo-slot" id="navLogoSlot">
+      <button class="logo-btn" id="logoBtn" aria-label="Open navigation" aria-expanded="false">
+        <img src="Pictures/AKO STENILS.svg" alt="AKO" class="logo-img" />
+        <span class="logo-line" aria-hidden="true"></span>
+      </button>
+    </div>
+    <ul class="nav-links" id="navLinks">
+      <li>
+        <a href="https://www.instagram.com/_.akobylee/" aria-label="Instagram">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#550b14"/></svg>
+        </a>
+      </li>
+      <li>
+        <a href="https://www.tiktok.com/@_.akobylee" aria-label="TikTok">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/></svg>
+        </a>
+      </li>
+      <li>
+        <button class="nav-cart-btn" id="cartBtn" aria-label="Open cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6z"/>
+          </svg>
+          <span class="cart-badge" id="cartBadge">0</span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+
+  <!-- =============================================
+       MENU CONTENT
+       ============================================= -->
+  <main class="menu-wrap">
+
+    <img
+  src="Pictures/citrus-accent.png"
+  alt=""
+  class="menu-accent"
+  aria-hidden="true"
+/>
+
+    <div class="menu-hero">
+      <span class="menu-label">What we brew</span>
+      <h1 class="menu-title">AKO'S TEA MENU</h1>
+      <p class="menu-sub">Every cup is made to order. All teas available iced or as a latte.</p>
+    </div>
+
+    <!-- SPECIAL MENU -->
+    <section class="menu-section">
+      <h2 class="menu-section-title">SPECIALS - tea based beverages</h2>
+
+      <div class="mrow" data-id="sticky-rice">
+        <div class="mrow-left">
+          <div class="mrow-name">"Sticky Rice" - Pureh Tea</div>
+          <div class="mrow-desc">Silky, rice-like, malty, complex</div>
+        </div>
+        <span class="mrow-price">$7.5</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+      <div class="mrow" data-id="milk-tea">
+        <div class="mrow-left">
+          <div class="mrow-name">Milk Tea - Red Tea</div>
+          <div class="mrow-desc">Nutty, chocolate, creamy</div>
+        </div>
+        <span class="mrow-price">$7.5</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+      <div class="mrow" data-id="yuja-ade">
+        <div class="mrow-left">
+          <div class="mrow-name">Yuja-Ade</div>
+          <div class="mrow-desc">Silver Needle &amp; dried rose petals, delicate and airy</div>
+        </div>
+        <span class="mrow-price">$7</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+      <div class="mrow" data-id="matcha-latte">
+        <div class="mrow-left">
+          <div class="mrow-name">Matcha Tea</div>
+          <div class="mrow-desc">Ceylon black tea with bergamot — timeless</div>
+        </div>
+        <span class="mrow-price">$5</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+    </section>
+
+    <!-- SEASONAL MENU -->
+    <section class="menu-section">
+      <h2 class="menu-section-title">SEASONAL</h2>
+
+      <div class="mrow" data-id="strawberry-fizz">
+        <div class="mrow-left">
+          <div class="mrow-name">Strawberry Fizz</div>
+          <div class="mrow-desc">[NON-CAFFINATED]</div>
+        </div>
+        <span class="mrow-price">$8</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+    </section>
+
+        <!-- MATCHA MENU -->
+    <section class="menu-section">
+      <h2 class="menu-section-title">MATCHA</h2>
+
+      <div class="mrow" data-id="matcha-cortdo">
+        <div class="mrow-left">
+          <div class="mrow-name">Matcha Cortdo</div>
+          
+        </div>
+        <span class="mrow-price">$6</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+      <div class="mrow" data-id="matcha-tea">
+        <div class="mrow-left">
+          <div class="mrow-name">Matcha Tea</div>
+          
+        </div>
+        <span class="mrow-price">$5.5</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+      <div class="mrow" data-id="matcha-ade">
+        <div class="mrow-left">
+          <div class="mrow-name">Matcha Calamansi Ade</div>
+          
+        </div>
+        <span class="mrow-price">$6.5</span>
+        <span class="mrow-arrow">→</span>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL OVERLAY -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card" id="modalCard">
+      <button class="modal-close" id="modalClose">close ×</button>
+      <div class="modal-img-wrap">
+        <img id="modalImg" src="" alt="" />
+        <div class="modal-img-overlay"></div>
+        <div class="modal-num" id="modalNum">#01</div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-cat" id="modalCat"></div>
+        <div class="modal-name" id="modalName"></div>
+        <div class="modal-price" id="modalPrice"></div>
+        <div class="modal-divider"></div>
+        <div class="modal-grid" id="modalGrid"></div>
+        <div class="modal-note" id="modalNote"></div>
+      </div>
+    </div>
+  </div>
+
+    <!-- =============================================
+     FOOTER
+     ============================================= -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <p class="footer-tagline">Make tea a part of your ritual.</p>
+        <div class="footer-socials">
+          <a href="https://www.instagram.com/_.akobylee/" aria-label="Instagram">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+            </svg>
+          </a>
+          <a href="https://www.tiktok.com/@_.akobylee" aria-label="TikTok">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      <div class="footer-center">
+        <img src="Pictures/AKO STENILS.svg" alt="AKO" class="footer-logo" />
+      </div>
+      <div class="footer-right">
+        <p class="footer-motto">A warmth in<br>every cup.</p>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /.home -->
+
+<script src="script.js"></script>
+<script src="menu.js"></script>
+</body>
+</html>
