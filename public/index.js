@@ -15,6 +15,9 @@
   const homeContent  = document.getElementById('homeContent');
   const logoBtn      = document.getElementById('logoBtn');
 
+  /* Moved up so the skip block can reference it */
+  let parallaxActive = false;
+
   /* Pre-measure the nav slot at page load by briefly making the home shell
      layout-visible (but it's behind the landing overlay so the user sees nothing).
      This means we never need to reveal home mid-animation just to get coords,
@@ -22,6 +25,21 @@
   home.setAttribute('aria-hidden', 'false');
   const toRectCache = navLogoSlot.getBoundingClientRect();
   home.setAttribute('aria-hidden', 'true');
+
+  /* ── Skip landing on return visits ── */
+  if (localStorage.getItem('ako_visited')) {
+    landing.style.display       = 'none';
+    home.setAttribute('aria-hidden', 'false');
+    logoBtn.style.transition    = 'none';
+    logoBtn.style.pointerEvents = 'auto';
+    logoBtn.style.opacity       = '1';
+    navLinks.classList.add('visible');
+    homeContent.classList.add('visible');
+    parallaxActive = true;
+    positionOrbitLinks();
+  } else {
+    localStorage.setItem('ako_visited', '1');
+  }
 
   /* ── Entry animation ── */
   enterBtn.addEventListener('click', () => {
@@ -125,7 +143,6 @@
   let mouseX = 0, mouseY = 0;
   let currentX = 0, currentY = 0;
   let rafId = null;
-  let parallaxActive = false;
 
   document.addEventListener('mousemove', (e) => {
     if (!parallaxActive) return;

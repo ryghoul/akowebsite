@@ -3,6 +3,9 @@
    Requires: style.css
    ========================================================= */
 
+/* ── Barlow Condensed font ── */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&display=swap');
+
 /* ─────────────────────────────────────────────
    FIX: override index scroll lock for inner pages
 ───────────────────────────────────────────── */
@@ -45,7 +48,8 @@ html, body {
 }
 
 .menu-title {
-  font-family: var(--headline-font);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
   font-size: clamp(2.4rem, 6vw, 5rem);
   line-height: 1;
   color: var(--ako-bright-red);
@@ -68,7 +72,8 @@ html, body {
 }
 
 .menu-section-title {
-  font-family: var(--headline-font);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
   font-size: clamp(1.4rem, 2.5vw, 2rem);
   color: var(--ako-bright-red);
   margin: 0 0 4px;
@@ -252,7 +257,8 @@ html, body {
 }
 
 .modal-name {
-  font-family: var(--headline-font);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
   font-size: 2rem;
   color: var(--wine);
   line-height: 1.05;
@@ -322,7 +328,7 @@ html, body {
 }
 
 .modal-note {
-  font-family: var(--headline-font);
+  font-family: var(--font);
   font-style: italic;
   font-size: 13.5px;
   color: var(--taupe);
@@ -339,14 +345,9 @@ html, body {
 
 .menu-accent {
   position: absolute;
-
-  /* pushes it OUTSIDE the content area */
   right: -400px;
   top: 120px;
-
-  /* makes it huge */
   width: clamp(300px, 30vw, 760px);
-
   opacity: 0.95;
   pointer-events: none;
   z-index: 0;

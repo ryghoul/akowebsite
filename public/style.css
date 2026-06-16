@@ -12,7 +12,7 @@
   --taupe:          #7e6961;
   --ako-bright-red: #e10600;
   --font:           ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --headline-font:  "CCBrianBollandJournal W00 Rg", serif;
+  --headline-font: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --pad:            clamp(18px, 3vw, 48px);
   --maxw:           1100px;
   --nav-height:     72px;
