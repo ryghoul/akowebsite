@@ -232,7 +232,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   opacity: 0;
   transition: opacity 0.22s ease;
   padding: 24px;
@@ -336,6 +336,36 @@ html, body {
   font-weight: 600;
   color: var(--wine);
 }
+
+/* ─────────────────────────────────────────────
+   SHIRT SPECS + SIZE GUIDE LINK (overlay)
+───────────────────────────────────────────── */
+.shirt-specs {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(248, 248, 247, 0.5);
+  line-height: 1.75;
+  text-align: center;
+}
+
+.size-guide-link {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(248, 248, 247, 0.6);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+  transition: color 0.15s ease;
+  margin-top: -2px;
+}
+
+.size-guide-link:hover { color: var(--ivory); }
 
 /* ─────────────────────────────────────────────
    BAGS — horizontal row cards
@@ -539,6 +569,124 @@ html, body {
 .bandana-btn:disabled:hover { background: none; color: var(--wine); }
 
 /* ─────────────────────────────────────────────
+   SIZE CHART MODAL
+───────────────────────────────────────────── */
+.size-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 18, 16, 0.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.size-modal.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.size-modal-box {
+  background: var(--ivory);
+  max-width: 620px;
+  width: 100%;
+  padding: 36px;
+  position: relative;
+  border-top: 4px solid var(--ako-bright-red);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.size-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--taupe);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: color 0.15s ease;
+}
+
+.size-modal-close:hover { color: var(--wine); }
+
+.size-modal-title {
+  font-family: var(--headline-font);
+  font-size: 2rem;
+  color: var(--wine);
+  margin: 0 0 4px;
+}
+
+.size-modal-sub {
+  font-size: 0.78rem;
+  color: var(--taupe);
+  letter-spacing: 0.05em;
+  margin: 0 0 24px;
+}
+
+.size-chart-img {
+  width: 100%;
+  max-width: 320px;
+  display: block;
+  margin: 0 auto 28px;
+  opacity: 0.85;
+}
+
+.size-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.size-table th {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--wine);
+  border-bottom: 2px solid var(--ako-bright-red);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.size-table th:first-child { text-align: left; }
+
+.size-table td {
+  padding: 11px 10px;
+  text-align: center;
+  color: var(--taupe);
+  border-bottom: 1px solid rgba(85, 11, 20, 0.08);
+  font-size: 0.85rem;
+}
+
+.size-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--wine);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+}
+
+.size-table tr:last-child td { border-bottom: none; }
+
+.size-modal-note {
+  font-size: 0.75rem;
+  color: var(--taupe);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(85, 11, 20, 0.1);
+  letter-spacing: 0.04em;
+}
+
+/* ─────────────────────────────────────────────
    RESPONSIVE
 ───────────────────────────────────────────── */
 @media (max-width: 800px) {
@@ -552,4 +700,7 @@ html, body {
   .bandana-grid { grid-template-columns: 1fr 1fr; }
   .bag-card { grid-template-columns: 1fr; }
   .bag-visual { height: 180px; }
+  .size-modal-box { padding: 24px 18px; }
+  .size-table th,
+  .size-table td { padding: 7px 5px; font-size: 0.75rem; }
 }
