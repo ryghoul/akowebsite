@@ -3,6 +3,8 @@
    Requires: style.css
    ========================================================= */
 
+   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&display=swap');
+
 html, body {
   overflow: auto !important;
   height: auto !important;
@@ -40,7 +42,7 @@ html, body {
 }
 
 .shop-title {
-  font-family: var(--headline-font);
+  font-family: 'Barlow Condensed', sans-serif;
   font-size: clamp(2.4rem, 6vw, 5rem);
   line-height: 1;
   color: var(--ako-bright-red);

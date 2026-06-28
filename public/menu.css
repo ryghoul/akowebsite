@@ -142,6 +142,84 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────
+   ARCHIVE SECTION
+───────────────────────────────────────────── */
+.archive-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid rgba(85, 11, 20, 0.2);
+  width: 100%;
+  padding: 0 0 12px;
+  cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  color: var(--taupe);
+  text-align: left;
+  transition: color 0.18s ease;
+  margin-bottom: 0;
+}
+
+.archive-toggle:hover { color: var(--ako-bright-red); }
+
+.archive-toggle[aria-expanded="true"] { color: var(--ako-bright-red); }
+
+.archive-chevron {
+  margin-left: auto;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  color: inherit;
+}
+
+.archive-toggle[aria-expanded="true"] .archive-chevron {
+  transform: rotate(180deg);
+}
+
+.archive-sub {
+  font-size: 0.8rem;
+  color: var(--taupe);
+  letter-spacing: 0.04em;
+  margin: 10px 0 0;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 0.22s ease, max-height 0.28s ease;
+}
+
+.archive-rows {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#archiveSection.open .archive-sub {
+  opacity: 1;
+  max-height: 40px;
+  margin-bottom: 16px;
+}
+
+#archiveSection.open .archive-rows {
+  max-height: 2000px; /* tall enough for any list */
+}
+
+/* Muted style for archived rows */
+.mrow.archived .mrow-name { color: var(--taupe); }
+.mrow.archived:hover .mrow-name { color: var(--ako-bright-red); }
+
+.archive-subheading {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  padding: 22px 0 10px;
+  border-bottom: 1px solid rgba(85, 11, 20, 0.08);
+  opacity: 0.7;
+}
+
+/* ─────────────────────────────────────────────
    ADD-ONS NOTE
 ───────────────────────────────────────────── */
 .menu-addons {
@@ -360,6 +438,8 @@ html, body {
   position: relative;
   z-index: 2;
 }
+
+
 
 /* mobile */
 @media (max-width: 1200px) {

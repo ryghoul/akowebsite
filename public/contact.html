@@ -9,10 +9,17 @@
 </head>
 <body>
 
-<!-- Click-outside overlay -->
-<div class="nav-overlay" id="navOverlay"></div>
+  <!-- =============================================
+     FULL NAVBAR
+     ============================================= -->
 
-<!-- Side drawer -->
+<!-- Nav click-outside overlay -->
+<div class="nav-overlay" id="navOverlay"></div>
+ 
+<!-- Cart overlay -->
+<div class="cart-overlay" id="cartOverlay"></div>
+ 
+<!-- Left nav drawer -->
 <nav class="nav-drawer" id="navDrawer" aria-hidden="true" aria-label="Site navigation">
   <ul class="nav-drawer-list">
     <li><a href="index.html">Home</a></li>
@@ -21,13 +28,32 @@
     <li><a href="our-story.html">Our Story</a></li>
     <li><a href="reservation.html">Reservation</a></li>
     <li><a href="about.html">About</a></li>
-    <li><a href="contact.html" class="active">Contact</a></li>
+    <li><a href="contact.html">Contact</a></li>
   </ul>
 </nav>
-
+ 
+<!-- Right cart drawer -->
+<aside class="cart-drawer" id="cartDrawer" aria-label="Shopping cart">
+  <div class="cart-header">
+    <div>
+      <h2 class="cart-title">Cart</h2>
+      <div class="cart-count" id="cartCount"></div>
+    </div>
+    <button class="cart-close-btn" id="cartClose">close ×</button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-footer">
+    <div class="cart-subtotal">
+      <span class="cart-subtotal-label">Subtotal</span>
+      <span class="cart-subtotal-amount" id="cartTotal">$0.00</span>
+    </div>
+    <p class="cart-note">Shipping &amp; taxes calculated at checkout.</p>
+    <button class="cart-checkout-btn" id="cartCheckoutBtn" disabled>Checkout</button>
+  </div>
+</aside>
+ 
 <!-- NAV BAR -->
 <div class="home" id="home">
-
   <nav class="home-nav">
     <div class="nav-logo-slot" id="navLogoSlot">
       <button class="logo-btn" id="logoBtn" aria-label="Open navigation" aria-expanded="false">
@@ -38,13 +64,22 @@
     <ul class="nav-links" id="navLinks">
       <li>
         <a href="https://www.instagram.com/_.akobylee/" aria-label="Instagram">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#e10600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#550b14"/></svg>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#550b14"/></svg>
         </a>
       </li>
       <li>
         <a href="https://www.tiktok.com/@_.akobylee" aria-label="TikTok">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="#e10600"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/></svg>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.84 1.56V6.8a4.85 4.85 0 01-1.07-.11z"/></svg>
         </a>
+      </li>
+      <li>
+        <button class="nav-cart-btn" id="cartBtn" aria-label="Open cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6z"/>
+          </svg>
+          <span class="cart-badge" id="cartBadge">0</span>
+        </button>
       </li>
     </ul>
   </nav>
@@ -56,7 +91,7 @@
 
     <div class="contact-hero">
       <span class="contact-label">Get in touch</span>
-      <h1 class="contact-title">Contact</h1>
+      <h1 class="contact-title">CONTACT</h1>
       <p class="contact-sub">Have a question, collab idea, or just want to say hi? We'd love to hear from you.</p>
     </div>
 

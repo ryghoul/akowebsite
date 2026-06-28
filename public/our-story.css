@@ -3,6 +3,11 @@
    Requires: style.css
    ========================================================= */
 
+html, body {
+  overflow: auto !important;
+  height: auto !important;
+}
+
 .wip-wrap {
   min-height: calc(100vh - var(--nav-height) - 130px);
   display: flex;

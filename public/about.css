@@ -3,6 +3,8 @@
    Requires: style.css
    ========================================================= */
 
+   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&display=swap');
+
 html,
 body {
   overflow: auto !important;
@@ -37,7 +39,7 @@ body {
 }
 
 .about-title {
-  font-family: var(--headline-font);
+  font-family: 'Barlow Condensed', sans-serif;
   font-size: clamp(2.6rem, 7vw, 6rem);
   line-height: 0.95;
   color: var(--ako-bright-red);
@@ -70,7 +72,7 @@ body {
 
 .about-card-text {
   font-family: var(--headline-font);
-  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-size: clamp(0.5rem, 2vw, 1rem);
   color: var(--wine);
   line-height: 1.25;
   margin: 0;
