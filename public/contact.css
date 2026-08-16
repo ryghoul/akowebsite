@@ -10,6 +10,7 @@
 html, body {
   overflow: auto !important;
   height: auto !important;
+  overflow-x: hidden;
 }
 
 /* ─────────────────────────────────────────────
@@ -274,6 +275,17 @@ a.info-value:hover { color: var(--ako-bright-red); }
 }
 
 @media (max-width: 520px) {
+  .contact-wrap {
+    padding-top: 28px;
+    padding-bottom: 34px;
+  }
+
+  .contact-hero {
+    gap: 6px;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+  }
+
   .form-row {
     grid-template-columns: 1fr;
   }

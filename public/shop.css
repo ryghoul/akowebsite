@@ -8,6 +8,7 @@
 html, body {
   overflow: auto !important;
   height: auto !important;
+  overflow-x: hidden;
 }
 
 /* ─────────────────────────────────────────────
@@ -698,11 +699,47 @@ html, body {
 }
 
 @media (max-width: 600px) {
+  .shop-wrap {
+    padding-top: 28px;
+    padding-bottom: 34px;
+  }
+
+  .shop-hero {
+    gap: 6px;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+  }
+
+  .filter-row {
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .filter-btn {
+    padding: 7px 12px;
+    letter-spacing: 0.1em;
+  }
+
   .shirts-grid { grid-template-columns: 1fr; }
   .bandana-grid { grid-template-columns: 1fr 1fr; }
+
+  .bandana-footer {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .bandana-btn {
+    margin-left: auto;
+    font-size: 8px;
+    letter-spacing: 1px;
+    padding: 5px 8px;
+  }
+
   .bag-card { grid-template-columns: 1fr; }
   .bag-visual { height: 180px; }
   .size-modal-box { padding: 24px 18px; }
   .size-table th,
   .size-table td { padding: 7px 5px; font-size: 0.75rem; }
+  .shop-section { margin-bottom: 30px; }
 }

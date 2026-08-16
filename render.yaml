@@ -15,9 +15,25 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: ADMIN_PASSWORD
+      - key: ADMIN_USER
+        value: akostaff
+      - key: ADMIN_PASS
         generateValue: false   # Set this manually in Render dashboard
-        # Go to: Render dashboard → your service → Environment → Add variable
-        # Key: ADMIN_PASSWORD   Value: your chosen password
-      - key: SESSION_SECRET
+        # Go to: Render dashboard -> your service -> Environment -> Add variable
+        # Key: ADMIN_PASS   Value: your chosen password
+      - key: ADMIN_SESSION_SECRET
         generateValue: true    # Render auto-generates a secure random value
+      - key: MENU_STATE_FILE
+        value: /opt/render/project/src/public/Pictures/menu-state.json
+      - key: MENU_AUTO_PUBLISH
+        value: "0"            # Set to "1" if you want every save to auto-publish to GitHub
+      - key: GITHUB_OWNER
+        generateValue: false   # Example: ryghoul
+      - key: GITHUB_REPO
+        generateValue: false   # Example: akowebsite
+      - key: GITHUB_BRANCH
+        value: main
+      - key: MENU_STATE_REPO_PATH
+        value: data/menu-state.json
+      - key: GITHUB_TOKEN
+        generateValue: false   # GitHub token with contents:write for this repo

@@ -123,7 +123,7 @@
     if (!links.length) return;
 
     const count  = links.length;
-    const radius = 50; /* percent of hub size */
+    const radius = window.innerWidth <= 520 ? 48 : 42; /* percent of hub size */
 
     links.forEach((link, i) => {
       const angle = (i / count) * 2 * Math.PI - Math.PI / 2;

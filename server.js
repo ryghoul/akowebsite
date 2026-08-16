@@ -3,10 +3,13 @@ require('dotenv').config();
 
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
+const cookie = require('cookie');
 const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
+const packageJson = require('./package.json');
 
 // ─────────────────────────────────────────────────────────────
 // Optional Stripe (guarded if key is missing)
@@ -37,6 +40,23 @@ const TO_EMAIL = process.env.TO_EMAIL || EMAIL_USER;
 
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:27017';
 const MONGO_DB  = process.env.MONGO_DB  || 'akoshop';
+
+const repoUrl = String(packageJson.repository?.url || '');
+const repoMatch = repoUrl.match(/github\.com[/:]([^/]+)\/([^/.]+)/i);
+const GITHUB_OWNER = process.env.GITHUB_OWNER || (repoMatch ? repoMatch[1] : '');
+const GITHUB_REPO = process.env.GITHUB_REPO || (repoMatch ? repoMatch[2] : '');
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const MENU_STATE_REPO_PATH = process.env.MENU_STATE_REPO_PATH || 'data/menu-state.json';
+
+const ADMIN_USER = process.env.ADMIN_USER || 'akostaff';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'teaparasaamin';
+const ADMIN_COOKIE_NAME = 'ako_admin_session';
+const ADMIN_SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'ako-admin-session-secret';
+
+const DATA_DIR = path.resolve(__dirname, 'data');
+const MENU_STATE_FILE = process.env.MENU_STATE_FILE || path.join(DATA_DIR, 'menu-state.json');
 
 console.log('[STATIC ROOT]', STATIC_ROOT);
 console.log('[BASE URL]', PUBLIC_BASE_URL);
@@ -79,6 +99,156 @@ app.use(express.static(STATIC_ROOT, { fallthrough: true }));
 
 const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
 
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function ensureDir(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function writeJsonFile(filePath, value) {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n', 'utf8');
+}
+
+function loadSavedMenuSnapshot() {
+  if (!exists(MENU_STATE_FILE)) return null;
+  return readJsonFile(MENU_STATE_FILE);
+}
+
+function isValidMenuSnapshot(snapshot) {
+  return isPlainObject(snapshot)
+    && isPlainObject(snapshot.menuData)
+    && isPlainObject(snapshot.menuImages)
+    && Array.isArray(snapshot.archiveItems)
+    && Array.isArray(snapshot.currentSections);
+}
+
+function signAdminPayload(payload) {
+  return crypto
+    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .update(payload)
+    .digest('base64url');
+}
+
+function createAdminSessionToken(username) {
+  const payload = Buffer.from(JSON.stringify({
+    username,
+    exp: Date.now() + ADMIN_SESSION_TTL_MS,
+  })).toString('base64url');
+  return `${payload}.${signAdminPayload(payload)}`;
+}
+
+function verifyAdminSessionToken(token) {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return null;
+
+  const expected = signAdminPayload(payload);
+  if (signature !== expected) return null;
+
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!parsed || parsed.exp < Date.now() || parsed.username !== ADMIN_USER) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readAdminSession(req) {
+  const cookies = cookie.parse(req.headers.cookie || '');
+  return verifyAdminSessionToken(cookies[ADMIN_COOKIE_NAME]);
+}
+
+function setAdminSessionCookie(res, token) {
+  res.append('Set-Cookie', cookie.serialize(ADMIN_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: Math.floor(ADMIN_SESSION_TTL_MS / 1000),
+    expires: new Date(Date.now() + ADMIN_SESSION_TTL_MS),
+  }));
+}
+
+function clearAdminSessionCookie(res) {
+  res.append('Set-Cookie', cookie.serialize(ADMIN_COOKIE_NAME, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 0,
+    expires: new Date(0),
+  }));
+}
+
+function requireAdmin(req, res, next) {
+  const session = readAdminSession(req);
+  if (!session) return res.status(401).json({ ok: false, error: 'Admin sign-in required.' });
+  req.adminSession = session;
+  next();
+}
+
+async function publishMenuSnapshotToGitHub(snapshot) {
+  if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
+    throw new Error('GitHub publishing is not configured. Set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO.');
+  }
+
+  if (typeof fetch !== 'function') {
+    throw new Error('This Node runtime does not provide fetch().');
+  }
+
+  const encodedPath = MENU_STATE_REPO_PATH.split('/').map(segment => encodeURIComponent(segment)).join('/');
+  const url = `https://api.github.com/repos/${encodeURIComponent(GITHUB_OWNER)}/${encodeURIComponent(GITHUB_REPO)}/contents/${encodedPath}`;
+  const headers = {
+    Authorization: `Bearer ${GITHUB_TOKEN}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'ako-menu-editor',
+  };
+
+  let sha;
+  const existingResponse = await fetch(`${url}?ref=${encodeURIComponent(GITHUB_BRANCH)}`, { headers });
+  if (existingResponse.status === 200) {
+    const existing = await existingResponse.json();
+    sha = existing.sha;
+  } else if (existingResponse.status !== 404) {
+    const message = await existingResponse.text();
+    throw new Error(`GitHub lookup failed: ${existingResponse.status} ${message}`);
+  }
+
+  const publishResponse = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: `Update shared menu state (${new Date().toISOString()})`,
+      branch: GITHUB_BRANCH,
+      content: Buffer.from(JSON.stringify(snapshot, null, 2) + '\n', 'utf8').toString('base64'),
+      sha,
+    }),
+  });
+
+  if (!publishResponse.ok) {
+    const message = await publishResponse.text();
+    throw new Error(`GitHub publish failed: ${publishResponse.status} ${message}`);
+  }
+
+  const payload = await publishResponse.json();
+  return {
+    commitSha: payload.commit?.sha || '',
+    commitUrl: payload.commit?.html_url || '',
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Debug & Health
 // ─────────────────────────────────────────────────────────────
@@ -88,6 +258,90 @@ app.get('/debug/public-list', (_req, res) => {
   res.json({ STATIC_ROOT, list });
 });
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+app.get('/api/admin/status', (req, res) => {
+  const session = readAdminSession(req);
+  res.json({ ok: true, authenticated: !!session, username: session?.username || null });
+});
+
+app.post('/api/admin/login', (req, res) => {
+  const username = String(req.body?.username || '').trim();
+  const password = String(req.body?.password || '');
+
+  if (username !== ADMIN_USER || password !== ADMIN_PASS) {
+    clearAdminSessionCookie(res);
+    return res.status(401).json({ ok: false, error: 'Invalid staff credentials.' });
+  }
+
+  setAdminSessionCookie(res, createAdminSessionToken(username));
+  res.json({ ok: true, username });
+});
+
+app.post('/api/admin/logout', (_req, res) => {
+  clearAdminSessionCookie(res);
+  res.json({ ok: true });
+});
+
+app.get('/api/menu-state', (_req, res) => {
+  try {
+    const snapshot = loadSavedMenuSnapshot();
+    if (!snapshot) return res.json({ ok: true, snapshot: null });
+    res.json({ ok: true, snapshot });
+  } catch (error) {
+    console.error('[menu-state] load error:', error);
+    res.status(500).json({ ok: false, error: 'Failed to load menu state.' });
+  }
+});
+
+app.post('/api/menu-state', requireAdmin, async (req, res) => {
+  try {
+    const snapshot = req.body?.snapshot;
+    if (!isValidMenuSnapshot(snapshot)) {
+      return res.status(400).json({ ok: false, error: 'Invalid menu state payload.' });
+    }
+
+    writeJsonFile(MENU_STATE_FILE, snapshot);
+
+    let published = false;
+    let publishResult = null;
+    let publishError = null;
+
+    if (process.env.MENU_AUTO_PUBLISH === '1') {
+      try {
+        publishResult = await publishMenuSnapshotToGitHub(snapshot);
+        published = true;
+      } catch (error) {
+        publishError = error.message;
+      }
+    }
+
+    res.json({
+      ok: true,
+      savedAt: new Date().toISOString(),
+      published,
+      publishResult,
+      publishError,
+    });
+  } catch (error) {
+    console.error('[menu-state] save error:', error);
+    res.status(500).json({ ok: false, error: 'Failed to save menu state.' });
+  }
+});
+
+app.post('/api/menu-state/publish', requireAdmin, async (_req, res) => {
+  try {
+    const snapshot = loadSavedMenuSnapshot();
+    if (!snapshot) {
+      return res.status(400).json({ ok: false, error: 'No saved menu state to publish yet.' });
+    }
+
+    const publishResult = await publishMenuSnapshotToGitHub(snapshot);
+    res.json({ ok: true, publishResult });
+  } catch (error) {
+    console.error('[menu-state] publish error:', error);
+    res.status(500).json({ ok: false, error: error.message || 'Failed to publish menu state.' });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────
 // Pages (explicit routes)

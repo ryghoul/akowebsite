@@ -341,6 +341,17 @@ body {
 }
 
 @media (max-width: 720px) {
+  .about-wrap {
+    padding-top: 28px;
+    padding-bottom: 34px;
+  }
+
+  .about-hero {
+    gap: 18px;
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+  }
+
   .about-image-block {
     min-height: 260px;
   }

@@ -9,6 +9,7 @@
 html, body {
   overflow: auto !important;
   height: auto !important;
+  overflow-x: hidden;
 }
 
 /* ─────────────────────────────────────────────
@@ -20,7 +21,7 @@ html, body {
   width: 100%;
   margin: 0 auto;
   padding: clamp(40px, 6vw, 80px) var(--pad);
-  padding-bottom: 0;
+  padding-bottom: clamp(28px, 5vw, 56px);
 }
 
 /* ─────────────────────────────────────────────
@@ -89,6 +90,17 @@ html, body {
    RESPONSIVE
 ───────────────────────────────────────────── */
 @media (max-width: 720px) {
+  .reservation-wrap {
+    padding-top: 28px;
+    padding-bottom: 24px;
+  }
+
+  .reservation-hero {
+    gap: 6px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+  }
+
   .calendly-wrap {
     border-radius: 8px;
     min-height: 600px;

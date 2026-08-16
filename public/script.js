@@ -216,3 +216,331 @@
 
   render(); // initial empty render
 })();
+
+/* =========================================================
+   AKO — staff editor login + editor mode
+   ========================================================= */
+(function () {
+  const STORAGE_KEY = 'ako_editor_enabled';
+  const ADMIN_LOGIN_URL = '/api/admin/login';
+  const ADMIN_STATUS_URL = '/api/admin/status';
+
+  async function loginAsStaff(username, password) {
+    const response = await fetch(ADMIN_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ username, password }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || 'Invalid staff credentials.');
+    }
+
+    return payload;
+  }
+
+  async function getAdminStatus() {
+    try {
+      const response = await fetch(ADMIN_STATUS_URL, { credentials: 'same-origin' });
+      const payload = await response.json().catch(() => ({}));
+      return !!(response.ok && payload.authenticated);
+    } catch {
+      return false;
+    }
+  }
+
+  function isDesktopViewport() {
+    return window.matchMedia('(min-width: 769px)').matches;
+  }
+
+  function isMenuPage() {
+    const path = window.location.pathname.split('/').pop() || '';
+    return path.toLowerCase() === 'menu.html' || !!document.querySelector('.menu-tab');
+  }
+
+  function ensureStaffControls() {
+    if (!isDesktopViewport()) {
+      const button = document.getElementById('staffLoginBtn');
+      const modal = document.getElementById('staffLoginModal');
+      if (button) button.remove();
+      if (modal) modal.remove();
+      return;
+    }
+
+    if (document.getElementById('staffLoginBtn')) return;
+
+    const navLinks = document.getElementById('navLinks');
+    const button = document.createElement('button');
+    button.id = 'staffLoginBtn';
+    button.type = 'button';
+    button.className = 'staff-login-btn';
+    button.textContent = 'Staff Login';
+
+    if (navLinks) {
+      const listItem = document.createElement('li');
+      listItem.appendChild(button);
+      navLinks.appendChild(listItem);
+    } else {
+      button.style.position = 'fixed';
+      button.style.right = '20px';
+      button.style.top = '20px';
+      button.style.zIndex = '100';
+      document.body.appendChild(button);
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'staffLoginModal';
+    modal.className = 'staff-modal hidden';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+      <div class="staff-modal-panel" role="dialog" aria-modal="true" aria-labelledby="staffLoginTitle">
+        <button type="button" class="staff-modal-close" aria-label="Close login">×</button>
+        <h3 id="staffLoginTitle">Staff Access</h3>
+        <form id="staffLoginForm" class="staff-login-form">
+          <label>
+            Username
+            <input id="staffUser" name="username" type="text" required />
+          </label>
+          <label>
+            Password
+            <input id="staffPass" name="password" type="password" required />
+          </label>
+          <p id="staffLoginError" class="staff-login-error" hidden></p>
+          <button type="submit">Enter Editor Mode</button>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector('.staff-modal-close');
+    const form = modal.querySelector('#staffLoginForm');
+
+    button.addEventListener('click', openLoginModal);
+    closeBtn.addEventListener('click', closeLoginModal);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeLoginModal();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const errorEl = document.getElementById('staffLoginError');
+      const username = document.getElementById('staffUser').value.trim();
+      const password = document.getElementById('staffPass').value;
+
+      if (submitBtn) submitBtn.disabled = true;
+      if (errorEl) {
+        errorEl.hidden = true;
+        errorEl.textContent = '';
+      }
+
+      try {
+        await loginAsStaff(username, password);
+        setEditorMode(true);
+        closeLoginModal();
+        form.reset();
+      } catch (error) {
+        if (errorEl) {
+          errorEl.hidden = false;
+          errorEl.textContent = error.message || 'Invalid staff credentials.';
+        } else {
+          alert(error.message || 'Invalid staff credentials.');
+        }
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeLoginModal();
+      }
+    });
+  }
+
+  function openLoginModal() {
+    const modal = document.getElementById('staffLoginModal');
+    const menuOverlay = document.getElementById('modalOverlay');
+    if (menuOverlay) {
+      menuOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeLoginModal() {
+    const modal = document.getElementById('staffLoginModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function setEditorMode(enabled) {
+    document.body.classList.toggle('editor-enabled', enabled);
+    localStorage.setItem(STORAGE_KEY, enabled ? '1' : '0');
+
+    const detailModal = document.getElementById('modalOverlay');
+    if (detailModal) detailModal.classList.remove('open');
+    const editModal = document.getElementById('menuEditorModal');
+    if (editModal) editModal.classList.add('hidden');
+
+    const toolbar = document.getElementById('editorToolbar');
+    if (toolbar) toolbar.remove();
+
+    if (!enabled || !isMenuPage()) {
+      if (window.AKOEditor && typeof window.AKOEditor.refreshMenuEditorState === 'function') {
+        window.AKOEditor.refreshMenuEditorState();
+      }
+      return;
+    }
+
+    if (!document.getElementById('editorToolbar')) {
+      const menuToolbar = document.createElement('div');
+      menuToolbar.id = 'editorToolbar';
+      menuToolbar.className = 'editor-toolbar';
+
+      const undoBtn = document.createElement('button');
+      undoBtn.type = 'button';
+      undoBtn.textContent = 'Undo';
+      undoBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.undoMenuChange === 'function') {
+          window.AKOEditor.undoMenuChange();
+        }
+      });
+
+      const redoBtn = document.createElement('button');
+      redoBtn.type = 'button';
+      redoBtn.textContent = 'Redo';
+      redoBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.redoMenuChange === 'function') {
+          window.AKOEditor.redoMenuChange();
+        }
+      });
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.textContent = 'Add Drink';
+      addBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.addDrinkFromPrompt === 'function') {
+          window.AKOEditor.addDrinkFromPrompt();
+        }
+      });
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.textContent = 'Edit Selected';
+      editBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.editSelectedDrink === 'function') {
+          window.AKOEditor.editSelectedDrink();
+        }
+      });
+
+      const moveCurrentBtn = document.createElement('button');
+      moveCurrentBtn.type = 'button';
+      moveCurrentBtn.textContent = 'Move to Current';
+      moveCurrentBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.moveSelectedArchiveItem === 'function') {
+          window.AKOEditor.moveSelectedArchiveItem();
+        }
+      });
+
+      const moveArchiveBtn = document.createElement('button');
+      moveArchiveBtn.type = 'button';
+      moveArchiveBtn.textContent = 'Move to Archive';
+      moveArchiveBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.moveSelectedCurrentItemToArchive === 'function') {
+          window.AKOEditor.moveSelectedCurrentItemToArchive();
+        }
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.textContent = 'Delete Selected';
+      deleteBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.deleteSelectedDrink === 'function') {
+          window.AKOEditor.deleteSelectedDrink();
+        }
+      });
+
+      const sectionBtn = document.createElement('button');
+      sectionBtn.type = 'button';
+      sectionBtn.textContent = 'Create Section';
+      sectionBtn.addEventListener('click', () => {
+        if (window.AKOEditor && typeof window.AKOEditor.createMenuSection === 'function') {
+          window.AKOEditor.createMenuSection();
+        }
+      });
+
+      const publishBtn = document.createElement('button');
+      publishBtn.type = 'button';
+      publishBtn.textContent = 'Publish GitHub';
+      publishBtn.addEventListener('click', async () => {
+        if (!window.AKOEditor || typeof window.AKOEditor.publishMenuStateToGitHub !== 'function') {
+          return;
+        }
+
+        publishBtn.disabled = true;
+        const originalLabel = publishBtn.textContent;
+        publishBtn.textContent = 'Publishing...';
+
+        try {
+          await window.AKOEditor.publishMenuStateToGitHub();
+        } finally {
+          publishBtn.disabled = false;
+          publishBtn.textContent = originalLabel;
+        }
+      });
+
+      const exitBtn = document.createElement('button');
+      exitBtn.type = 'button';
+      exitBtn.textContent = 'Exit Editor';
+      exitBtn.addEventListener('click', () => setEditorMode(false));
+
+      menuToolbar.append(undoBtn, redoBtn, addBtn, editBtn, moveCurrentBtn, moveArchiveBtn, deleteBtn, sectionBtn, publishBtn, exitBtn);
+      document.body.appendChild(menuToolbar);
+    }
+
+    if (window.AKOEditor && typeof window.AKOEditor.refreshMenuEditorState === 'function') {
+      window.AKOEditor.refreshMenuEditorState();
+    }
+  }
+
+  ensureStaffControls();
+
+  window.addEventListener('resize', () => {
+    if (!isDesktopViewport()) {
+      const button = document.getElementById('staffLoginBtn');
+      const modal = document.getElementById('staffLoginModal');
+      if (button) button.remove();
+      if (modal) modal.remove();
+      setEditorMode(false);
+      return;
+    }
+
+    ensureStaffControls();
+  });
+
+  (async () => {
+    if (localStorage.getItem(STORAGE_KEY) !== '1') return;
+    const isAuthenticated = await getAdminStatus();
+    if (isAuthenticated) {
+      setEditorMode(true);
+      return;
+    }
+
+    localStorage.removeItem(STORAGE_KEY);
+    setEditorMode(false);
+  })();
+
+  window.AKO = window.AKO || {};
+  window.AKO.editor = {
+    setEditorMode,
+    openLoginModal,
+    closeLoginModal,
+  };
+  window.AKOEditor = window.AKO.editor;
+})();

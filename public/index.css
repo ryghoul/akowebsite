@@ -39,11 +39,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--pad) var(--pad) clamp(16px, 2.5vw, 28px);
-  min-height: var(--nav-height);
+  padding: clamp(18px, 2.4vw, 26px) clamp(22px, 4vw, 42px) clamp(18px, 2.4vw, 24px);
+  min-height: calc(var(--nav-height) + 8px);
   flex-shrink: 0;
   overflow: hidden;
   border-bottom: none;
+  gap: 18px;
 }
 
 /* ── Hide logo line until site is entered ── */
@@ -70,7 +71,8 @@
   margin: 0;
   padding: 0;
   display: flex;
-  gap: clamp(24px, 4vw, 60px);
+  align-items: center;
+  gap: clamp(16px, 2vw, 28px);
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.45s ease, transform 0.45s ease;
@@ -92,8 +94,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   transition: opacity 0.2s;
 }
@@ -104,8 +106,8 @@
 
 .nav-links a svg {
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
 }
 
 /* ── Logo button (drawer trigger) ── */
@@ -288,10 +290,10 @@
 }
 
 .headline {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Barlow Condensed', sans-serif;
   font-weight: 700;
-  font-size: clamp(1.4rem, 2vw, 1.9rem);
-  letter-spacing: .25em;
+  font-size: clamp(1.6rem, 2.2vw, 2.2rem);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ako-bright-red);
   margin: 0;
@@ -310,6 +312,47 @@
 .entry-btn:not(:disabled):hover .rule { width: min(310px, 80vw); }
 
 /* ── Reduced motion overrides (index-specific) ── */
+@media (max-width: 520px) {
+  .home-nav {
+    padding-left: 20px;
+    padding-right: 20px;
+    gap: 12px;
+  }
+
+  .nav-links {
+    gap: 12px;
+  }
+
+  .nav-links a {
+    width: 36px;
+    height: 36px;
+  }
+
+  .nav-links a svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .home-content {
+    margin-bottom: 52px;
+  }
+
+  .hub {
+    width: min(74vw, 340px);
+    height: min(74vw, 340px);
+  }
+
+  .hub-mascot {
+    width: 38%;
+    height: 38%;
+  }
+
+  .orbit-link {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .headline-wrap,
   .headline-wrap.wipe-out,
