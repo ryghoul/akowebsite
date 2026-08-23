@@ -1,188 +1,356 @@
 /* =========================================================
-   shop.js — Inventory fetch, stock display, filter, cart
+   shop.js — Fetches the shop catalog (products + live stock)
+   from /api/shop-catalog and renders it, replacing the old
+   hardcoded-markup + separate /api/inventory approach.
    ========================================================= */
 
 (function () {
 
-  let inventory = {};
+  let catalog = [];        // full product list from the API
+  let catalogByKey = {};   // productKey -> product
 
-  /* ── Product metadata for cart display ── */
-  const PRODUCTS = {
-    'shirt|V1': { name: '"Oh no, my matcha!" Boxy Tee V.1', price: 3000, emoji: '👕' },
-    'shirt|V2': { name: '"Oh no, my matcha!" Boxy Tee V.2', price: 3000, emoji: '👚' },
-    'tote|Black|NOSIZE':        { name: 'AKO* Tea Bag', price: 3500, emoji: '🛍', variant: 'Black' },
-    'tote|Green|NOSIZE':        { name: 'AKO* Tea Bag', price: 3500, emoji: '🛍', variant: 'Green' },
-    'bandana|MORE TEA|NOSIZE':  { name: 'AKO* Bandana S.2', price: 2000, emoji: '🎽', variant: 'MORE TEA' },
-    'bandana|PERFORMATIVE|NOSIZE': { name: 'AKO* Bandana S.2', price: 2000, emoji: '🎽', variant: 'PERFORMATIVE' },
-    'bandana|REACH|NOSIZE':     { name: 'AKO* Bandana S.2', price: 2000, emoji: '🎽', variant: 'REACH' },
-  };
+  const SECTION_LABELS = { shirts: 'Shirts', bags: 'Bags', bandanas: 'Bandanas — S.2' };
+  const SECTION_EMOJI  = { shirts: '👕', bags: '🛍', bandanas: '🎽' };
 
-  /* ── Fetch inventory ── */
-  async function loadInventory() {
-    try {
-      const res = await fetch('/api/inventory');
-      if (!res.ok) throw new Error('Failed to load inventory');
-      inventory = await res.json();
-      applyStockToAll();
-    } catch (err) {
-      console.error('[shop] inventory load failed:', err);
-    }
+  /* ── Helpers ── */
+
+  function isEditorMode() {
+    return document.body.classList.contains('editor-enabled');
   }
 
-  /* ── Stock helpers ── */
-  function getStock(sku) {
-    return typeof inventory[sku] === 'number' ? inventory[sku] : null;
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  function formatPrice(cents) {
+    const dollars = (Number(cents) || 0) / 100;
+    return dollars % 1 === 0 ? String(dollars) : dollars.toFixed(2);
+  }
+
+  function hexToRgba(hex, alpha) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return `rgba(0,0,0,${alpha})`;
+    const int = parseInt(m[1], 16);
+    const r = (int >> 16) & 255, g = (int >> 8) & 255, b = int & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function skuFor(product, size) {
+    return `${product.productKey}|${size}`;
   }
 
   function stockLabel(stock) {
-    if (stock === null) return { text: '', cls: '' };
-    if (stock === 0)    return { text: 'Sold out',          cls: 'sold-out' };
-    if (stock <= 3)     return { text: `Only ${stock} left`, cls: 'low-stock' };
-    return               { text: 'In stock',                cls: 'in-stock' };
+    if (typeof stock !== 'number') return { text: '', cls: '' };
+    if (stock === 0) return { text: 'Sold out', cls: 'sold-out' };
+    if (stock <= 3)  return { text: `Only ${stock} left`, cls: 'low-stock' };
+    return             { text: 'In stock', cls: 'in-stock' };
   }
 
-  function setBadge(el, stock) {
-    if (!el) return;
-    const { text, cls } = stockLabel(stock);
-    el.textContent = text;
-    el.className   = 'stock-badge' + (cls ? ' ' + cls : '');
+  function sectionLabel(section) {
+    return SECTION_LABELS[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   }
 
-  function setStatus(el, stock) {
-    if (!el) return;
-    const { text, cls } = stockLabel(stock);
-    el.textContent = text;
-    el.className   = 'stock-status' + (cls ? ' ' + cls : '');
+  function slugify(str) {
+    return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'section';
   }
 
-  /* ── Apply stock to all products ── */
-  function applyStockToAll() {
-    applyShirtStock('V1');
-    applyShirtStock('V2');
-    applyBagStock('Black');
-    applyBagStock('Green');
-    applyBandanaStock('MORE TEA');
-    applyBandanaStock('PERFORMATIVE');
-    applyBandanaStock('REACH');
+  /* ── Card templates (markup/classes match the site's existing CSS exactly) ── */
+
+  function renderShirtCard(p) {
+    const sizes = Array.isArray(p.sizes) && p.sizes.length ? p.sizes : ['NOSIZE'];
+    const firstAvailable = sizes.find(s => (p.stock?.[s] ?? 0) > 0) || sizes[0];
+
+    const sizeButtons = sizes.map(size => {
+      const stock = p.stock?.[size] ?? 0;
+      const cls = ['sz', size === firstAvailable ? 'active' : '', stock === 0 ? 'out-of-stock' : ''].filter(Boolean).join(' ');
+      return `<button class="${cls}" data-size="${escapeHtml(size)}" data-sku="${escapeHtml(skuFor(p, size))}">${escapeHtml(size)}</button>`;
+    }).join('');
+
+    const initialStock = p.stock?.[firstAvailable] ?? 0;
+    const { text: statusText, cls: statusCls } = stockLabel(initialStock);
+    const specsHtml = p.specs ? escapeHtml(p.specs).replace(/\n/g, '<br>\n') : '';
+
+    return `
+      <div class="shirt-card${p.active === false ? ' shop-card-inactive' : ''}" data-productkey="${escapeHtml(p.productKey)}">
+        <div class="shirt-visual">
+          <img src="${escapeHtml(p.image || '')}" alt="${escapeHtml(p.name)}" class="shirt-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+          <div class="shirt-placeholder">👕</div>
+          ${p.tagLabel ? `<div class="shirt-tag">${escapeHtml(p.tagLabel)}</div>` : ''}
+          <div class="shirt-overlay">
+            <div class="overlay-name">${escapeHtml(p.name)}</div>
+            <div class="overlay-price">$${formatPrice(p.price)}</div>
+            <div class="size-row">${sizeButtons}</div>
+            <div class="stock-status${statusCls ? ' ' + statusCls : ''}">${statusText}</div>
+            ${specsHtml ? `<div class="shirt-specs">${specsHtml}</div>` : ''}
+            <button type="button" class="size-guide-link">Size Guide ↗</button>
+            <button type="button" class="overlay-btn add-to-cart" ${initialStock === 0 ? 'disabled' : ''}>Add to cart</button>
+          </div>
+        </div>
+        <div class="shirt-info">
+          <span class="shirt-name">${escapeHtml(p.name)}</span>
+          <span class="shirt-price">$${formatPrice(p.price)}</span>
+        </div>
+      </div>`;
   }
 
-  function applyShirtStock(version) {
-    const card     = document.querySelector(`[data-product="shirt|${version}"]`);
-    const statusEl = document.getElementById(`stock-shirt-${version}`);
-    const addBtn   = card?.querySelector('.add-to-cart');
-    if (!card) return;
+  function renderBagCard(p) {
+    const size = (Array.isArray(p.sizes) && p.sizes[0]) || 'NOSIZE';
+    const stock = p.stock?.[size] ?? 0;
+    const { text: badgeText, cls: badgeCls } = stockLabel(stock);
+    const bg = hexToRgba(p.colorHex, p.colorHex ? 0.12 : 0);
 
-    ['S', 'M', 'L', 'XL'].forEach(size => {
-      const sku = `shirt|${version}|${size}`;
-      const btn = card.querySelector(`[data-sku="${sku}"]`);
-      if (!btn) return;
-      const stock = getStock(sku);
-      if (stock === 0) { btn.classList.add('out-of-stock'); btn.title = 'Sold out'; }
-      else             { btn.classList.remove('out-of-stock'); btn.title = ''; }
+    return `
+      <div class="bag-card${p.active === false ? ' shop-card-inactive' : ''}" data-productkey="${escapeHtml(p.productKey)}">
+        <div class="bag-visual" style="background:${bg}">
+          ${p.colorHex ? `<div class="bag-color-strip" style="background:${escapeHtml(p.colorHex)}"></div>` : ''}
+          <img src="${escapeHtml(p.image || '')}" alt="${escapeHtml(p.name)}" class="bag-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+          <span class="bag-placeholder">🛍</span>
+        </div>
+        <div class="bag-body">
+          <div class="bag-name">${escapeHtml(p.name)}</div>
+          <div class="bag-desc">${escapeHtml(p.description || '')}</div>
+          <div class="bag-stock-row">
+            <span class="stock-badge${badgeCls ? ' ' + badgeCls : ''}">${badgeText}</span>
+          </div>
+        </div>
+        <div class="bag-action">
+          <div class="bag-price">$${formatPrice(p.price)}</div>
+          <button type="button" class="bag-btn add-to-cart" ${stock === 0 ? 'disabled' : ''}>Add to cart</button>
+        </div>
+      </div>`;
+  }
+
+  function renderBandanaCard(p) {
+    const size = (Array.isArray(p.sizes) && p.sizes[0]) || 'NOSIZE';
+    const stock = p.stock?.[size] ?? 0;
+    const { text: badgeText, cls: badgeCls } = stockLabel(stock);
+
+    return `
+      <div class="bandana-card${p.active === false ? ' shop-card-inactive' : ''}" data-productkey="${escapeHtml(p.productKey)}">
+        <div class="bandana-visual" style="background:${escapeHtml(p.colorHex || '#e8e0d4')}">
+          <img src="${escapeHtml(p.image || '')}" alt="${escapeHtml(p.name)} bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+          <div class="bandana-bg">
+            <div class="bandana-diamond" style="background:${escapeHtml(p.accentHex || '#1a1a1a')}"></div>
+          </div>
+        </div>
+        <div class="bandana-body">
+          <div class="bandana-name">${escapeHtml(p.name)}</div>
+          <div class="bandana-desc">${escapeHtml(p.description || '')}</div>
+          <div class="bandana-footer">
+            <div>
+              <span class="bandana-price">$${formatPrice(p.price)}${p.presale ? ' <span class="presale-tag">presale</span>' : ''}</span>
+              <span class="stock-badge${badgeCls ? ' ' + badgeCls : ''}">${badgeText}</span>
+            </div>
+            <button type="button" class="bandana-btn add-to-cart" ${stock === 0 ? 'disabled' : ''}>Add to cart</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Generic fallback for staff-created sections beyond shirts/bags/bandanas.
+  // Reuses the bag-card layout; only the first size is orderable — multi-size
+  // custom-section products aren't fully supported by this fallback yet.
+  function renderGenericCard(p) {
+    return renderBagCard(p);
+  }
+
+  const SECTION_CONFIG = {
+    shirts:   { gridId: 'shirtsGrid', render: renderShirtCard },
+    bags:     { gridId: 'bagsGrid', render: renderBagCard },
+    bandanas: { gridId: 'bandanaGrid', render: renderBandanaCard },
+  };
+
+  /* ── Rendering orchestration ── */
+
+  function productsBySection() {
+    const map = new Map();
+    catalog.forEach(p => {
+      if (!map.has(p.section)) map.set(p.section, []);
+      map.get(p.section).push(p);
+    });
+    return map;
+  }
+
+  function ensureSectionElement(section) {
+    let el = document.querySelector(`.shop-section[data-section="${CSS.escape(section)}"]`);
+    if (el) return el;
+
+    const main = document.querySelector('.shop-wrap');
+    if (!main) return null;
+
+    el = document.createElement('section');
+    el.className = 'shop-section';
+    el.id = 'sec-' + slugify(section);
+    el.dataset.section = section;
+
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = sectionLabel(section);
+    el.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'bags-grid generic-grid';
+    el.appendChild(grid);
+
+    main.appendChild(el);
+    return el;
+  }
+
+  function renderGrid(grid, products, templateFn, editor) {
+    if (!grid) return;
+    const visible = products.filter(p => editor || p.active !== false);
+    if (!visible.length) {
+      grid.innerHTML = '<p class="shop-empty">Nothing here yet.</p>';
+      return;
+    }
+    grid.innerHTML = visible.map(templateFn).join('');
+  }
+
+  function rebuildFilterRow(sections) {
+    const row = document.querySelector('.filter-row');
+    if (!row) return;
+    const current = row.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+
+    const keys = ['all', ...sections];
+    row.innerHTML = keys.map(key => {
+      const label = key === 'all' ? 'All' : sectionLabel(key).replace(/\s*—.*$/, '');
+      const activeCls = key === current ? ' active' : '';
+      return `<button type="button" class="filter-btn${activeCls}" data-filter="${escapeHtml(key)}">${escapeHtml(label)}</button>`;
+    }).join('');
+
+    bindFilterButtons();
+  }
+
+  function bindFilterButtons() {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+        document.querySelectorAll('.shop-section').forEach(sec => {
+          const key = sec.dataset.section;
+          if (filter === 'all' || filter === key) sec.classList.remove('hidden');
+          else sec.classList.add('hidden');
+        });
+      });
+    });
+  }
+
+  function bindCardInteractions() {
+    // Shirt-style size selection
+    document.querySelectorAll('.shirt-card').forEach(card => {
+      const product = catalogByKey[card.dataset.productkey];
+      if (!product) return;
+      const statusEl = card.querySelector('.stock-status');
+      const addBtn = card.querySelector('.add-to-cart');
+
+      card.querySelectorAll('.size-row .sz').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          if (btn.classList.contains('out-of-stock')) return;
+          card.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const stock = product.stock?.[btn.dataset.size] ?? 0;
+          const { text, cls } = stockLabel(stock);
+          if (statusEl) {
+            statusEl.textContent = text;
+            statusEl.className = 'stock-status' + (cls ? ' ' + cls : '');
+          }
+          if (addBtn) addBtn.disabled = (stock === 0);
+        });
+      });
+
+      card.querySelectorAll('.size-guide-link').forEach(link => {
+        link.addEventListener('click', e => {
+          e.stopPropagation();
+          document.getElementById('sizeModal')?.classList.add('open');
+        });
+      });
     });
 
-    updateShirtStatus(version, statusEl, addBtn);
-  }
-
-  function updateShirtStatus(version, statusEl, addBtn) {
-    const card        = document.querySelector(`[data-product="shirt|${version}"]`);
-    const activeSzBtn = card?.querySelector('.sz.active:not(.out-of-stock)');
-    const stock       = activeSzBtn ? getStock(activeSzBtn.dataset.sku) : 0;
-    setStatus(statusEl, stock);
-    if (addBtn) addBtn.disabled = (stock === 0 || !activeSzBtn);
-  }
-
-  function applyBagStock(color) {
-    const sku     = `tote|${color}|NOSIZE`;
-    const stock   = getStock(sku);
-    const badgeEl = document.getElementById(`stock-tote-${color}`);
-    const btn     = document.querySelector(`[data-sku="${sku}"].bag-btn`);
-    setBadge(badgeEl, stock);
-    if (btn) btn.disabled = (stock === 0);
-  }
-
-  function applyBandanaStock(name) {
-    const sku     = `bandana|${name}|NOSIZE`;
-    const stock   = getStock(sku);
-    const badgeId = 'stock-bandana-' + name.replace(/\s+/g, '-');
-    const badgeEl = document.getElementById(badgeId);
-    const btn     = document.querySelector(`[data-sku="${sku}"].bandana-btn`);
-    setBadge(badgeEl, stock);
-    if (btn) btn.disabled = (stock === 0);
-  }
-
-  /* ── Size button interactions ── */
-  document.querySelectorAll('.shirt-card').forEach(card => {
-    const version  = card.dataset.product?.split('|')[1];
-    const statusEl = document.getElementById(`stock-shirt-${version}`);
-    const addBtn   = card.querySelector('.add-to-cart');
-
-    card.querySelectorAll('.size-row .sz').forEach(btn => {
+    // Add to cart — works for every card type via the shared [data-productkey] ancestor
+    document.querySelectorAll('.add-to-cart').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        if (btn.classList.contains('out-of-stock')) return;
-        card.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const stock = getStock(btn.dataset.sku);
-        setStatus(statusEl, stock);
-        if (addBtn) addBtn.disabled = (stock === 0);
+        if (btn.disabled) return;
+
+        const card = btn.closest('[data-productkey]');
+        const product = card && catalogByKey[card.dataset.productkey];
+        if (!product) return;
+
+        const sizes = Array.isArray(product.sizes) && product.sizes.length ? product.sizes : ['NOSIZE'];
+        let size, variant;
+
+        if (sizes.length > 1) {
+          const activeSz = card.querySelector('.sz.active:not(.out-of-stock)');
+          if (!activeSz) return;
+          size = activeSz.dataset.size;
+          variant = size;
+        } else {
+          size = sizes[0];
+          variant = product.productKey.split('|').slice(1).join('|') || '';
+        }
+
+        const stock = product.stock?.[size] ?? 0;
+        if (stock === 0) return;
+
+        window.AKO?.addToCart({
+          sku: skuFor(product, size),
+          name: product.name,
+          variant,
+          price: product.price,
+          emoji: SECTION_EMOJI[product.section] || '🛒',
+        });
       });
     });
-  });
+  }
 
-  /* ── Filter buttons ── */
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const filter = btn.dataset.filter;
-      ['shirts', 'bags', 'bandanas'].forEach(cat => {
-        const sec = document.getElementById('sec-' + cat);
-        if (!sec) return;
-        if (filter === 'all' || filter === cat) sec.classList.remove('hidden');
-        else sec.classList.add('hidden');
-      });
+  function renderAll() {
+    const bySection = productsBySection();
+    const editor = isEditorMode();
+    const sectionsInOrder = [...bySection.keys()];
+
+    // Create DOM for any section the catalog references that isn't already
+    // in the page (custom staff-created sections beyond the 3 built-in ones).
+    sectionsInOrder.forEach(ensureSectionElement);
+
+    Object.entries(SECTION_CONFIG).forEach(([section, cfg]) => {
+      renderGrid(document.getElementById(cfg.gridId), bySection.get(section) || [], cfg.render, editor);
     });
-  });
 
-  /* ── Add to cart ── */
-  document.querySelectorAll('.add-to-cart').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      if (btn.disabled) return;
-
-      let sku, variant;
-
-      if (btn.dataset.product?.startsWith('shirt|')) {
-        const card      = btn.closest('.shirt-card');
-        const activeBtn = card?.querySelector('.sz.active:not(.out-of-stock)');
-        if (!activeBtn) return;
-        sku     = activeBtn.dataset.sku;
-        variant = activeBtn.dataset.size;
-      } else {
-        sku = btn.dataset.sku;
-      }
-
-      if (!sku) return;
-
-      // Get product metadata
-      const productKey = sku.startsWith('shirt|')
-        ? sku.split('|').slice(0, 2).join('|')   // shirt|V1
-        : sku;
-
-      const meta = PRODUCTS[productKey] || PRODUCTS[sku] || {};
-
-      window.AKO?.addToCart({
-        sku,
-        name:    meta.name    || sku,
-        variant: variant      || meta.variant || '',
-        price:   meta.price   || 0,
-        emoji:   meta.emoji   || '🛍',
-      });
+    sectionsInOrder.filter(s => !SECTION_CONFIG[s]).forEach(section => {
+      const el = ensureSectionElement(section);
+      const grid = el?.querySelector('.generic-grid');
+      renderGrid(grid, bySection.get(section) || [], renderGenericCard, editor);
     });
-  });
 
-  /* ── Init ── */
-  loadInventory();
+    bindCardInteractions();
+    rebuildFilterRow(sectionsInOrder);
+  }
+
+  /* ── Load ── */
+
+  async function loadCatalog() {
+    try {
+      const res = await fetch('/api/shop-catalog');
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.ok) throw new Error(payload.error || 'Failed to load shop catalog');
+
+      catalog = Array.isArray(payload.products) ? payload.products : [];
+      catalogByKey = {};
+      catalog.forEach(p => { catalogByKey[p.productKey] = p; });
+
+      renderAll();
+    } catch (err) {
+      console.error('[shop] catalog load failed:', err);
+      document.querySelectorAll('.shop-loading').forEach(el => {
+        el.textContent = 'Unable to load the shop right now — please refresh.';
+      });
+    }
+  }
+
+  loadCatalog();
 
 })();

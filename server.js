@@ -83,6 +83,8 @@ try {
   Inventory = model('Inventory', InventorySchema);
 }
 
+const Product = require('./models/Product');
+
 // ─────────────────────────────────────────────────────────────
 // Middleware
 // ─────────────────────────────────────────────────────────────
@@ -538,6 +540,45 @@ ${list || '(no items?)'}`,
     }
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// Shop Catalog API (read)
+// ─────────────────────────────────────────────────────────────
+
+// GET /api/shop-catalog -> { ok, products: [{ ...product, stock: {size: count} }] }
+// Public (matches existing GET /api/menu-state precedent); returns inactive
+// products too — the storefront filters them client-side, editor mode shows
+// them with a "hidden" treatment.
+app.get('/api/shop-catalog', async (_req, res) => {
+  try {
+    const products = await Product.find({}).sort({ section: 1, order: 1, createdAt: 1 }).lean();
+
+    const skus = [];
+    for (const p of products) {
+      for (const size of p.sizes) skus.push(`${p.productKey}|${size}`);
+    }
+
+    const inventoryRows = skus.length
+      ? await Inventory.find({ sku: { $in: skus } }, { _id: 0, sku: 1, stock: 1 }).lean()
+      : [];
+    const stockBySku = {};
+    for (const row of inventoryRows) stockBySku[row.sku] = row.stock;
+
+    const catalog = products.map(p => {
+      const stock = {};
+      for (const size of p.sizes) {
+        const sku = `${p.productKey}|${size}`;
+        stock[size] = typeof stockBySku[sku] === 'number' ? stockBySku[sku] : 0;
+      }
+      return { ...p, stock };
+    });
+
+    res.json({ ok: true, products: catalog });
+  } catch (e) {
+    console.error('[shop-catalog] load error:', e);
+    res.status(500).json({ ok: false, error: 'Failed to load shop catalog.' });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────
 // Inventory API (atomic decrement, no replica set required)

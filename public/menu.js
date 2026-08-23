@@ -438,7 +438,8 @@ function ensureCurrentMenuSection() {
   const currentPanel = document.getElementById('panel-current');
   if (!currentPanel) return null;
 
-  let section = currentPanel.querySelector('.menu-section:last-of-type');
+  const sections = [...currentPanel.querySelectorAll('.menu-section')].filter(s => s.id !== 'archiveSection');
+  let section = sections[sections.length - 1];
   if (section) return section;
 
   section = document.createElement('section');
@@ -454,7 +455,9 @@ function ensureCurrentMenuSection() {
 }
 
 function buildCurrentSectionsSnapshot() {
-  const sections = [...document.querySelectorAll('#panel-current .menu-section')].map(section => ({
+  const sections = [...document.querySelectorAll('#panel-current .menu-section')]
+    .filter(section => section.id !== 'archiveSection')
+    .map(section => ({
     title: section.querySelector('.menu-section-title')?.textContent?.trim() || '',
     rows: [...section.querySelectorAll('.mrow')].map(row => {
       const id = row.dataset.id || '';
@@ -512,15 +515,20 @@ function renderCurrentSections(currentSections) {
   const currentPanel = document.getElementById('panel-current');
   if (!currentPanel) return;
 
+  const archiveEl = currentPanel.querySelector('#archiveSection');
+
   currentPanel.innerHTML = '';
 
   currentSections.forEach(sectionData => {
+    const sectionTitle = (sectionData.title || '').trim();
+    if (!sectionTitle) return; // drop stale/corrupt sections with no real title (e.g. old Archive capture bug)
+
     const section = document.createElement('section');
     section.className = 'menu-section';
 
     const title = document.createElement('h2');
     title.className = 'menu-section-title';
-    title.textContent = sectionData.title || 'UNTITLED SECTION';
+    title.textContent = sectionTitle;
     section.appendChild(title);
 
     (sectionData.rows || []).forEach(rowData => {
@@ -529,6 +537,8 @@ function renderCurrentSections(currentSections) {
 
     currentPanel.appendChild(section);
   });
+
+  if (archiveEl) currentPanel.appendChild(archiveEl);
 }
 
 function applyMenuSnapshot(snapshot, options = {}) {

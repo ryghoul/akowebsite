@@ -103,193 +103,30 @@
     </div>
 
     <!-- ── SHIRTS ── -->
-    <section class="shop-section" id="sec-shirts">
+    <section class="shop-section" id="sec-shirts" data-section="shirts">
       <div class="section-label">Shirts</div>
-      <div class="shirts-grid">
-
-        <!-- Shirt V1 -->
-        <div class="shirt-card" data-product="shirt|V1">
-          <div class="shirt-visual">
-            <img src="Pictures/merch/shirt4.png" alt="Oh no, my matcha! Boxy Tee V.1" class="shirt-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-            <div class="shirt-placeholder">👕</div>
-            <div class="shirt-tag">Faded Bone</div>
-            <div class="shirt-overlay">
-              <div class="overlay-name">"Oh no, my matcha!"<br>Boxy Tee V.1</div>
-              <div class="overlay-price">$30</div>
-              <div class="size-row">
-                <button class="sz active" data-size="S" data-sku="shirt|V1|S">S</button>
-                <button class="sz" data-size="M" data-sku="shirt|V1|M">M</button>
-                <button class="sz" data-size="L" data-sku="shirt|V1|L">L</button>
-                <button class="sz" data-size="XL" data-sku="shirt|V1|XL">XL</button>
-              </div>
-              <div class="stock-status" id="stock-shirt-V1"></div>
-              <div class="shirt-specs">
-                Wide neck ribbing · Garment dyed · Side seamed<br>
-                Shoulder-to-shoulder tape · Double needle hems · Preshrunk<br>
-                7.1 oz · 16 Singles · 100% carded cotton · Relaxed fit
-              </div>
-              <button class="size-guide-link" onclick="document.getElementById('sizeModal').classList.add('open'); event.stopPropagation();">Size Guide ↗</button>
-              <button class="overlay-btn add-to-cart" data-product="shirt|V1">Add to cart</button>
-            </div>
-          </div>
-          <div class="shirt-info">
-            <span class="shirt-name">"Oh no, my matcha!" Boxy Tee V.1</span>
-            <span class="shirt-price">$30</span>
-          </div>
-        </div>
-
-        <!-- Shirt V2 -->
-        <div class="shirt-card" data-product="shirt|V2">
-          <div class="shirt-visual">
-            <img src="Pictures/merch/shirt5.png" alt="Oh no, my matcha! Boxy Tee V.2" class="shirt-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-            <div class="shirt-placeholder">👚</div>
-            <div class="shirt-tag">Faded Bone</div>
-            <div class="shirt-overlay">
-              <div class="overlay-name">"Oh no, my matcha!"<br>Boxy Tee V.2</div>
-              <div class="overlay-price">$30</div>
-              <div class="size-row">
-                <button class="sz active" data-size="S" data-sku="shirt|V2|S">S</button>
-                <button class="sz" data-size="M" data-sku="shirt|V2|M">M</button>
-                <button class="sz" data-size="L" data-sku="shirt|V2|L">L</button>
-                <button class="sz" data-size="XL" data-sku="shirt|V2|XL">XL</button>
-              </div>
-              <div class="stock-status" id="stock-shirt-V2"></div>
-              <div class="shirt-specs">
-                Wide neck ribbing · Garment dyed · Side seamed<br>
-                Shoulder-to-shoulder tape · Double needle hems · Preshrunk<br>
-                7.1 oz · 16 Singles · 100% carded cotton · Relaxed fit
-              </div>
-              <button class="size-guide-link" onclick="document.getElementById('sizeModal').classList.add('open'); event.stopPropagation();">Size Guide ↗</button>
-              <button class="overlay-btn add-to-cart" data-product="shirt|V2">Add to cart</button>
-            </div>
-          </div>
-          <div class="shirt-info">
-            <span class="shirt-name">"Oh no, my matcha!" Boxy Tee V.2</span>
-            <span class="shirt-price">$30</span>
-          </div>
-        </div>
-
+      <div class="shirts-grid" id="shirtsGrid">
+        <p class="shop-loading">Loading…</p>
       </div>
     </section>
 
     <!-- ── BAGS ── -->
-    <section class="shop-section" id="sec-bags">
+    <section class="shop-section" id="sec-bags" data-section="bags">
       <div class="section-label">Bags</div>
-      <div class="bags-grid">
-
-        <!-- Tote Black -->
-        <div class="bag-card" data-sku="tote|Black|NOSIZE">
-          <div class="bag-visual" style="background:rgba(26,26,26,0.1)">
-            <div class="bag-color-strip" style="background:#1a1a1a"></div>
-            <img src="Pictures/merch/blacktote.png" alt="AKO* Tea Bag Black" class="bag-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
-            <span class="bag-placeholder">🛍</span>
-          </div>
-          <div class="bag-body">
-            <div class="bag-name">AKO* Tea Bag</div>
-            <div class="bag-desc">Black colorway. Reinforced shoulder straps, one large main compartment, 3 external pockets. One size — 19.69" × 15.75", gusset 11.8", strap 23.62". 9.4 oz, 100% cotton canvas.</div>
-            <div class="bag-stock-row">
-              <span class="stock-badge" id="stock-tote-Black"></span>
-            </div>
-          </div>
-          <div class="bag-action">
-            <div class="bag-price">$35</div>
-            <button class="bag-btn add-to-cart" data-sku="tote|Black|NOSIZE">Add to cart</button>
-          </div>
-        </div>
-
-        <!-- Tote Green -->
-        <div class="bag-card" data-sku="tote|Green|NOSIZE">
-          <div class="bag-visual" style="background:rgba(45,74,45,0.13)">
-            <div class="bag-color-strip" style="background:#2d4a2d"></div>
-            <img src="Pictures/merch/greentote.png" alt="AKO* Tea Bag Green" class="bag-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
-            <span class="bag-placeholder">🛍</span>
-          </div>
-          <div class="bag-body">
-            <div class="bag-name">AKO* Tea Bag</div>
-            <div class="bag-desc">Green colorway. Reinforced shoulder straps, one large main compartment, 3 external pockets. One size — 19.69" × 15.75", gusset 11.8", strap 23.62". 9.4 oz, 100% cotton canvas.</div>
-            <div class="bag-stock-row">
-              <span class="stock-badge" id="stock-tote-Green"></span>
-            </div>
-          </div>
-          <div class="bag-action">
-            <div class="bag-price">$35</div>
-            <button class="bag-btn add-to-cart" data-sku="tote|Green|NOSIZE">Add to cart</button>
-          </div>
-        </div>
-
+      <div class="bags-grid" id="bagsGrid">
+        <p class="shop-loading">Loading…</p>
       </div>
     </section>
 
     <!-- ── BANDANAS ── -->
-    <section class="shop-section" id="sec-bandanas">
+    <section class="shop-section" id="sec-bandanas" data-section="bandanas">
       <div class="section-label">Bandanas — S.2</div>
-      <div class="bandana-grid">
-
-        <!-- MORE TEA -->
-        <div class="bandana-card" data-sku="bandana|MORE TEA|NOSIZE">
-          <div class="bandana-visual" style="background:#e8e0d4">
-            <img src="Pictures/merch/moretea.png" alt="MORE TEA bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-            <div class="bandana-bg">
-              <div class="bandana-diamond" style="background:#1a1a1a"></div>
-            </div>
-          </div>
-          <div class="bandana-body">
-            <div class="bandana-name">MORE TEA</div>
-            <div class="bandana-desc">AKO* Bandana S.2 — Black colorway. 22" × 22".</div>
-            <div class="bandana-footer">
-              <div>
-                <span class="bandana-price">$20 <span class="presale-tag">presale</span></span>
-                <span class="stock-badge" id="stock-bandana-MORE-TEA"></span>
-              </div>
-              <button class="bandana-btn add-to-cart" data-sku="bandana|MORE TEA|NOSIZE">Add to cart</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- PERFORMATIVE -->
-        <div class="bandana-card" data-sku="bandana|PERFORMATIVE|NOSIZE">
-          <div class="bandana-visual" style="background:#550b14">
-            <img src="Pictures/merch/performative.png" alt="PERFORMATIVE bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-            <div class="bandana-bg">
-              <div class="bandana-diamond" style="background:#cbc0b2"></div>
-            </div>
-          </div>
-          <div class="bandana-body">
-            <div class="bandana-name">PERFORMATIVE</div>
-            <div class="bandana-desc">AKO* Bandana S.2 — Matcha design. 22" × 22".</div>
-            <div class="bandana-footer">
-              <div>
-                <span class="bandana-price">$20 <span class="presale-tag">presale</span></span>
-                <span class="stock-badge" id="stock-bandana-PERFORMATIVE"></span>
-              </div>
-              <button class="bandana-btn add-to-cart" data-sku="bandana|PERFORMATIVE|NOSIZE">Add to cart</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- REACH -->
-        <div class="bandana-card" data-sku="bandana|REACH|NOSIZE">
-          <div class="bandana-visual" style="background:#cbc0b2">
-            <img src="Pictures/merch/reach.png" alt="REACH bandana" class="bandana-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-            <div class="bandana-bg">
-              <div class="bandana-diamond" style="background:#550b14"></div>
-            </div>
-          </div>
-          <div class="bandana-body">
-            <div class="bandana-name">REACH</div>
-            <div class="bandana-desc">AKO* Bandana S.2 — Hand design. 22" × 22".</div>
-            <div class="bandana-footer">
-              <div>
-                <span class="bandana-price">$20 <span class="presale-tag">presale</span></span>
-                <span class="stock-badge" id="stock-bandana-REACH"></span>
-              </div>
-              <button class="bandana-btn add-to-cart" data-sku="bandana|REACH|NOSIZE">Add to cart</button>
-            </div>
-          </div>
-        </div>
-
+      <div class="bandana-grid" id="bandanaGrid">
+        <p class="shop-loading">Loading…</p>
       </div>
     </section>
+
+    <!-- Additional staff-created sections are appended here dynamically by shop.js -->
 
   </main>
 

@@ -98,6 +98,17 @@ html, body {
 
 .shop-section.hidden { display: none; }
 
+.shop-loading,
+.shop-empty {
+  opacity: 0.6;
+  font-size: 0.85rem;
+  padding: 12px 0;
+}
+
+.shop-card-inactive {
+  opacity: 0.45;
+}
+
 .section-label {
   font-size: 0.7rem;
   letter-spacing: 0.22em;
