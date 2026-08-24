@@ -109,6 +109,22 @@ html, body {
   opacity: 0.45;
 }
 
+body.editor-enabled .shirt-card,
+body.editor-enabled .bag-card,
+body.editor-enabled .bandana-card {
+  outline: 1px dashed rgba(225, 6, 0, 0.5);
+  outline-offset: 2px;
+  cursor: pointer;
+}
+
+body.editor-enabled .shirt-card.is-selected,
+body.editor-enabled .bag-card.is-selected,
+body.editor-enabled .bandana-card.is-selected {
+  outline-style: solid;
+  outline-color: rgba(225, 6, 0, 0.6);
+  background: rgba(225, 6, 0, 0.06);
+}
+
 .section-label {
   font-size: 0.7rem;
   letter-spacing: 0.22em;

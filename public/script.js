@@ -68,8 +68,31 @@
 
 (function () {
 
-  /* ── Cart state (session only — no localStorage) ── */
-  let cart = []; // [{ sku, name, variant, price, qty, emoji }]
+  /* ── Cart state (persisted to localStorage so it survives page navigation) ── */
+  const CART_STORAGE_KEY = 'ako_cart_v1';
+
+  function loadCart() {
+    try {
+      const raw = localStorage.getItem(CART_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(i => i && typeof i.sku === 'string' && Number.isFinite(i.qty) && i.qty > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  function saveCart() {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    } catch {
+      // localStorage unavailable (private browsing, quota, etc.) — cart just
+      // won't survive navigation this time, not worth surfacing to the user.
+    }
+  }
+
+  let cart = loadCart(); // [{ sku, name, variant, price, qty, emoji, image }]
 
   /* ── DOM refs ── */
   const itemsEl    = document.getElementById('cartItems');
@@ -78,13 +101,19 @@
   const totalEl    = document.getElementById('cartTotal');
   const checkoutEl = document.getElementById('cartCheckoutBtn');
 
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
   /* ── Add item to cart ── */
-  function addToCart({ sku, name, variant, price, emoji = '🛍' }) {
+  function addToCart({ sku, name, variant, price, emoji = '🛍', image = '' }) {
     const existing = cart.find(i => i.sku === sku);
     if (existing) {
       existing.qty += 1;
     } else {
-      cart.push({ sku, name, variant, price, qty: 1, emoji });
+      cart.push({ sku, name, variant, price, qty: 1, emoji, image });
     }
     render();
     if (window.AKO?.openCart) window.AKO.openCart();
@@ -107,6 +136,8 @@
 
   /* ── Render cart drawer ── */
   function render() {
+    saveCart();
+
     const total    = cart.reduce((s, i) => s + i.price * i.qty, 0);
     const count    = cart.reduce((s, i) => s + i.qty, 0);
     const totalFmt = '$' + (total / 100).toFixed(2);
@@ -146,10 +177,12 @@
 
     itemsEl.innerHTML = cart.map(item => `
       <div class="cart-item" data-sku="${item.sku}">
-        <div class="cart-item-thumb">${item.emoji}</div>
+        <div class="cart-item-thumb">${item.image
+          ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><span class="cart-item-emoji">${escapeHtml(item.emoji)}</span>`
+          : escapeHtml(item.emoji)}</div>
         <div>
-          <div class="cart-item-name">${item.name}</div>
-          <div class="cart-item-variant">${item.variant}</div>
+          <div class="cart-item-name">${escapeHtml(item.name)}</div>
+          <div class="cart-item-variant">${escapeHtml(item.variant)}</div>
           <div class="cart-item-qty">
             <button class="qty-btn" data-sku="${item.sku}" data-delta="-1">−</button>
             <span class="qty-num">${item.qty}</span>
@@ -186,6 +219,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             items: cart.map(i => ({
+              sku:      i.sku,
               name:     i.name + (i.variant ? ` — ${i.variant}` : ''),
               price:    i.price,
               quantity: i.qty,
@@ -214,7 +248,7 @@
   window.AKO = window.AKO || {};
   window.AKO.addToCart = addToCart;
 
-  render(); // initial empty render
+  render(); // initial render — reflects any cart restored from localStorage above
 })();
 
 /* =========================================================
@@ -258,6 +292,11 @@
   function isMenuPage() {
     const path = window.location.pathname.split('/').pop() || '';
     return path.toLowerCase() === 'menu.html' || !!document.querySelector('.menu-tab');
+  }
+
+  function isShopPage() {
+    const path = window.location.pathname.split('/').pop() || '';
+    return path.toLowerCase() === 'shop.html' || !!document.querySelector('.shop-wrap');
   }
 
   function ensureStaffControls() {
@@ -379,6 +418,82 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
+  function callEditor(fnName, ...args) {
+    if (window.AKOEditor && typeof window.AKOEditor[fnName] === 'function') {
+      return window.AKOEditor[fnName](...args);
+    }
+  }
+
+  function makeToolbarButton(label, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function buildMenuToolbar() {
+    const toolbar = document.createElement('div');
+    toolbar.id = 'editorToolbar';
+    toolbar.className = 'editor-toolbar';
+
+    const undoBtn = makeToolbarButton('Undo', () => callEditor('undoMenuChange'));
+    const redoBtn = makeToolbarButton('Redo', () => callEditor('redoMenuChange'));
+    const addBtn = makeToolbarButton('Add Drink', () => callEditor('addDrinkFromPrompt'));
+    const editBtn = makeToolbarButton('Edit Selected', () => callEditor('editSelectedDrink'));
+    const moveCurrentBtn = makeToolbarButton('Move to Current', () => callEditor('moveSelectedArchiveItem'));
+    const moveArchiveBtn = makeToolbarButton('Move to Archive', () => callEditor('moveSelectedCurrentItemToArchive'));
+    const deleteBtn = makeToolbarButton('Delete Selected', () => callEditor('deleteSelectedDrink'));
+    const sectionBtn = makeToolbarButton('Create Section', () => callEditor('createMenuSection'));
+
+    const publishBtn = makeToolbarButton('Publish GitHub', async () => {
+      if (!window.AKOEditor || typeof window.AKOEditor.publishMenuStateToGitHub !== 'function') return;
+      publishBtn.disabled = true;
+      const originalLabel = publishBtn.textContent;
+      publishBtn.textContent = 'Publishing...';
+      try {
+        await window.AKOEditor.publishMenuStateToGitHub();
+      } finally {
+        publishBtn.disabled = false;
+        publishBtn.textContent = originalLabel;
+      }
+    });
+
+    const exitBtn = makeToolbarButton('Exit Editor', () => setEditorMode(false));
+
+    toolbar.append(undoBtn, redoBtn, addBtn, editBtn, moveCurrentBtn, moveArchiveBtn, deleteBtn, sectionBtn, publishBtn, exitBtn);
+    return toolbar;
+  }
+
+  function buildShopToolbar() {
+    const toolbar = document.createElement('div');
+    toolbar.id = 'editorToolbar';
+    toolbar.className = 'editor-toolbar';
+
+    const addBtn = makeToolbarButton('Add Item', () => callEditor('addShopItem'));
+    const editBtn = makeToolbarButton('Edit Selected', () => callEditor('editSelectedShopItem'));
+    const stockBtn = makeToolbarButton('Edit Stock', () => callEditor('editSelectedShopItemStock'));
+    const deleteBtn = makeToolbarButton('Delete Selected', () => callEditor('deleteSelectedShopItem'));
+
+    const publishBtn = makeToolbarButton('Publish GitHub', async () => {
+      if (!window.AKOEditor || typeof window.AKOEditor.publishShopCatalogToGitHub !== 'function') return;
+      publishBtn.disabled = true;
+      const originalLabel = publishBtn.textContent;
+      publishBtn.textContent = 'Publishing...';
+      try {
+        await window.AKOEditor.publishShopCatalogToGitHub();
+      } finally {
+        publishBtn.disabled = false;
+        publishBtn.textContent = originalLabel;
+      }
+    });
+
+    const exitBtn = makeToolbarButton('Exit Editor', () => setEditorMode(false));
+
+    toolbar.append(addBtn, editBtn, stockBtn, deleteBtn, publishBtn, exitBtn);
+    return toolbar;
+  }
+
   function setEditorMode(enabled) {
     document.body.classList.toggle('editor-enabled', enabled);
     localStorage.setItem(STORAGE_KEY, enabled ? '1' : '0');
@@ -391,7 +506,10 @@
     const toolbar = document.getElementById('editorToolbar');
     if (toolbar) toolbar.remove();
 
-    if (!enabled || !isMenuPage()) {
+    const onMenu = isMenuPage();
+    const onShop = !onMenu && isShopPage();
+
+    if (!enabled || (!onMenu && !onShop)) {
       if (window.AKOEditor && typeof window.AKOEditor.refreshMenuEditorState === 'function') {
         window.AKOEditor.refreshMenuEditorState();
       }
@@ -399,109 +517,7 @@
     }
 
     if (!document.getElementById('editorToolbar')) {
-      const menuToolbar = document.createElement('div');
-      menuToolbar.id = 'editorToolbar';
-      menuToolbar.className = 'editor-toolbar';
-
-      const undoBtn = document.createElement('button');
-      undoBtn.type = 'button';
-      undoBtn.textContent = 'Undo';
-      undoBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.undoMenuChange === 'function') {
-          window.AKOEditor.undoMenuChange();
-        }
-      });
-
-      const redoBtn = document.createElement('button');
-      redoBtn.type = 'button';
-      redoBtn.textContent = 'Redo';
-      redoBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.redoMenuChange === 'function') {
-          window.AKOEditor.redoMenuChange();
-        }
-      });
-
-      const addBtn = document.createElement('button');
-      addBtn.type = 'button';
-      addBtn.textContent = 'Add Drink';
-      addBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.addDrinkFromPrompt === 'function') {
-          window.AKOEditor.addDrinkFromPrompt();
-        }
-      });
-
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.textContent = 'Edit Selected';
-      editBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.editSelectedDrink === 'function') {
-          window.AKOEditor.editSelectedDrink();
-        }
-      });
-
-      const moveCurrentBtn = document.createElement('button');
-      moveCurrentBtn.type = 'button';
-      moveCurrentBtn.textContent = 'Move to Current';
-      moveCurrentBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.moveSelectedArchiveItem === 'function') {
-          window.AKOEditor.moveSelectedArchiveItem();
-        }
-      });
-
-      const moveArchiveBtn = document.createElement('button');
-      moveArchiveBtn.type = 'button';
-      moveArchiveBtn.textContent = 'Move to Archive';
-      moveArchiveBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.moveSelectedCurrentItemToArchive === 'function') {
-          window.AKOEditor.moveSelectedCurrentItemToArchive();
-        }
-      });
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.textContent = 'Delete Selected';
-      deleteBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.deleteSelectedDrink === 'function') {
-          window.AKOEditor.deleteSelectedDrink();
-        }
-      });
-
-      const sectionBtn = document.createElement('button');
-      sectionBtn.type = 'button';
-      sectionBtn.textContent = 'Create Section';
-      sectionBtn.addEventListener('click', () => {
-        if (window.AKOEditor && typeof window.AKOEditor.createMenuSection === 'function') {
-          window.AKOEditor.createMenuSection();
-        }
-      });
-
-      const publishBtn = document.createElement('button');
-      publishBtn.type = 'button';
-      publishBtn.textContent = 'Publish GitHub';
-      publishBtn.addEventListener('click', async () => {
-        if (!window.AKOEditor || typeof window.AKOEditor.publishMenuStateToGitHub !== 'function') {
-          return;
-        }
-
-        publishBtn.disabled = true;
-        const originalLabel = publishBtn.textContent;
-        publishBtn.textContent = 'Publishing...';
-
-        try {
-          await window.AKOEditor.publishMenuStateToGitHub();
-        } finally {
-          publishBtn.disabled = false;
-          publishBtn.textContent = originalLabel;
-        }
-      });
-
-      const exitBtn = document.createElement('button');
-      exitBtn.type = 'button';
-      exitBtn.textContent = 'Exit Editor';
-      exitBtn.addEventListener('click', () => setEditorMode(false));
-
-      menuToolbar.append(undoBtn, redoBtn, addBtn, editBtn, moveCurrentBtn, moveArchiveBtn, deleteBtn, sectionBtn, publishBtn, exitBtn);
-      document.body.appendChild(menuToolbar);
+      document.body.appendChild(onMenu ? buildMenuToolbar() : buildShopToolbar());
     }
 
     if (window.AKOEditor && typeof window.AKOEditor.refreshMenuEditorState === 'function') {

@@ -302,6 +302,7 @@
           variant,
           price: product.price,
           emoji: SECTION_EMOJI[product.section] || '🛒',
+          image: product.image || '',
         });
       });
     });
@@ -326,8 +327,26 @@
       renderGrid(grid, bySection.get(section) || [], renderGenericCard, editor);
     });
 
+    // Remove any previously-created custom section that no longer has any
+    // products. Unlike the 3 built-in sections (permanent parts of the page,
+    // shown with a "Nothing here yet." state when empty), a dynamically
+    // created section should disappear once its last item is deleted —
+    // otherwise its stale DOM (and stale card) is never touched again, since
+    // the loop above only visits sections that currently have products.
+    document.querySelectorAll('.shop-section').forEach(el => {
+      const section = el.dataset.section;
+      if (SECTION_CONFIG[section]) return; // built-in, never remove
+      if (!sectionsInOrder.includes(section)) el.remove();
+    });
+
     bindCardInteractions();
     rebuildFilterRow(sectionsInOrder);
+
+    // Let the shop editor (if loaded) re-bind card selection after every
+    // render, since renderGrid() replaces innerHTML and drops listeners.
+    if (window.AKOEditor && typeof window.AKOEditor.refreshMenuEditorState === 'function') {
+      window.AKOEditor.refreshMenuEditorState();
+    }
   }
 
   /* ── Load ── */
@@ -352,5 +371,13 @@
   }
 
   loadCatalog();
+
+  // Exposed for shop-editor.js: reload() re-fetches the catalog and re-renders;
+  // getProduct() looks up a currently-loaded product's full data by productKey.
+  window.AKOShop = {
+    reload: loadCatalog,
+    getProduct: (productKey) => catalogByKey[productKey],
+    getAllProducts: () => catalog.slice(),
+  };
 
 })();

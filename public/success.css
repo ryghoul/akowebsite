@@ -1,0 +1,75 @@
+/* =========================================================
+   success.css — Order confirmation page
+   ========================================================= */
+
+.success-wrap {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(60px, 10vw, 120px) var(--pad);
+}
+
+.success-card {
+  max-width: 480px;
+  text-align: center;
+}
+
+.success-label {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  margin-bottom: 10px;
+}
+
+.success-title {
+  margin: 0 0 14px;
+  font-family: var(--headline-font);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  letter-spacing: 0.04em;
+  color: var(--wine);
+  transition: color 0.2s ease;
+}
+
+.success-detail {
+  color: var(--taupe);
+  line-height: 1.6;
+  margin: 0 0 28px;
+}
+
+.success-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.success-btn {
+  display: inline-block;
+  padding: 12px 26px;
+  border-radius: 999px;
+  background: var(--ako-bright-red);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: transform 0.15s ease;
+}
+
+.success-btn:hover {
+  transform: translateY(-1px);
+}
+
+.success-btn.secondary {
+  background: transparent;
+  border: 1px solid rgba(85, 11, 20, 0.25);
+  color: var(--wine);
+}
+
+body[data-state="error"] .success-title,
+body[data-state="canceled"] .success-title {
+  color: var(--ako-bright-red);
+}

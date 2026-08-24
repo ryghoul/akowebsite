@@ -3,34 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Shop — AKO</title>
+  <title>Order Confirmed — AKO</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="shop.css" />
+  <link rel="stylesheet" href="success.css" />
 </head>
 <body>
+
   <!-- =============================================
      FULL NAVBAR
      ============================================= -->
 
 <!-- Nav click-outside overlay -->
 <div class="nav-overlay" id="navOverlay"></div>
- 
+
 <!-- Cart overlay -->
 <div class="cart-overlay" id="cartOverlay"></div>
- 
+
 <!-- Left nav drawer -->
 <nav class="nav-drawer" id="navDrawer" aria-hidden="true" aria-label="Site navigation">
   <ul class="nav-drawer-list">
     <li><a href="index.html">Home</a></li>
     <li><a href="shop.html">Shop</a></li>
     <li><a href="menu.html">Menu</a></li>
-    <!-- <li><a href="our-story.html">Our Story</a></li> -->
     <li><a href="reservation.html">Reservation</a></li>
     <li><a href="about.html">About</a></li>
     <li><a href="contact.html">Contact</a></li>
   </ul>
 </nav>
- 
+
 <!-- Right cart drawer -->
 <aside class="cart-drawer" id="cartDrawer" aria-label="Shopping cart">
   <div class="cart-header">
@@ -50,7 +50,7 @@
     <button class="cart-checkout-btn" id="cartCheckoutBtn" disabled>Checkout</button>
   </div>
 </aside>
- 
+
 <!-- NAV BAR -->
 <div class="home" id="home">
   <nav class="home-nav">
@@ -83,56 +83,22 @@
     </ul>
   </nav>
 
-    <!-- =============================================
-     SHOP CONTENT
-     ============================================= -->
-  <main class="shop-wrap">
-
-    <div class="shop-hero">
-      <span class="shop-label">AKO WEAR</span>
-      <h1 class="shop-title">SHOP</h1>
-      <p class="shop-sub">Tea Culture Inspired Merch</p>
+  <!-- =============================================
+       ORDER CONFIRMATION CONTENT
+       ============================================= -->
+  <main class="success-wrap">
+    <div class="success-card">
+      <span class="success-label">AKO by Lee</span>
+      <h1 class="success-title" id="successStatus">Confirming your order…</h1>
+      <p class="success-detail" id="successDetail">Hang tight, this only takes a second.</p>
+      <div class="success-actions">
+        <a href="shop.html" class="success-btn">Back to Shop</a>
+        <a href="index.html" class="success-btn secondary">Home</a>
+      </div>
     </div>
-
-    <!-- Filter row -->
-    <div class="filter-row">
-      <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="shirts">Shirts</button>
-      <button class="filter-btn" data-filter="bags">Bags</button>
-      <button class="filter-btn" data-filter="bandanas">Bandanas</button>
-    </div>
-
-    <!-- ── SHIRTS ── -->
-    <section class="shop-section" id="sec-shirts" data-section="shirts">
-      <div class="section-label">Shirts</div>
-      <div class="shirts-grid" id="shirtsGrid">
-        <p class="shop-loading">Loading…</p>
-      </div>
-    </section>
-
-    <!-- ── BAGS ── -->
-    <section class="shop-section" id="sec-bags" data-section="bags">
-      <div class="section-label">Bags</div>
-      <div class="bags-grid" id="bagsGrid">
-        <p class="shop-loading">Loading…</p>
-      </div>
-    </section>
-
-    <!-- ── BANDANAS ── -->
-    <section class="shop-section" id="sec-bandanas" data-section="bandanas">
-      <div class="section-label">Bandanas — S.2</div>
-      <div class="bandana-grid" id="bandanaGrid">
-        <p class="shop-loading">Loading…</p>
-      </div>
-    </section>
-
-    <!-- Additional staff-created sections are appended here dynamically by shop.js -->
-
   </main>
 
-    <!-- =============================================
-     FOOTER
-     ============================================= -->
+  <!-- FOOTER -->
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-left">
@@ -161,46 +127,9 @@
     </div>
   </footer>
 
-  <!-- =============================================
-     SIZE CHART MODAL
-     ============================================= -->
-  <div class="size-modal" id="sizeModal" onclick="this.classList.remove('open')">
-    <div class="size-modal-box" onclick="event.stopPropagation()">
-      <button class="size-modal-close" onclick="document.getElementById('sizeModal').classList.remove('open')">close ×</button>
-      <h2 class="size-modal-title">Size Guide</h2>
-      <p class="size-modal-sub">Boxy Tee — measurements in inches (laid flat)</p>
-      <img src="Pictures/merch/size-chart.png" alt="Size chart diagram showing width and length measurement points" class="size-chart-img" />
-      <table class="size-table">
-        <thead>
-          <tr>
-            <th>Measurement</th>
-            <th>XSM</th>
-            <th>SML</th>
-            <th>MED</th>
-            <th>LRG</th>
-            <th>XLG</th>
-            <th>2XL</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Body Width</td>
-            <td>18¾</td><td>19¾</td><td>20¾</td><td>21¾</td><td>22½</td><td>23½</td>
-          </tr>
-          <tr>
-            <td>Body Length</td>
-            <td>25¼</td><td>25½</td><td>26</td><td>26¼</td><td>26¾</td><td>27¼</td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="size-modal-note">Relaxed fit · 7.1 oz · 100% carded cotton · Garment dyed · Preshrunk</p>
-    </div>
-  </div>
-
 </div><!-- /.home -->
 
 <script src="script.js"></script>
-<script src="shop.js"></script>
-<script src="shop-editor.js"></script>
+<script src="success.js"></script>
 </body>
 </html>

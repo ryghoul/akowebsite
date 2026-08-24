@@ -88,13 +88,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ryghoul/akowebsite.git"
+    "url": "git+https://github.com/ryghoul/akobylee.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ryghoul/akowebsite/issues"
+    "url": "https://github.com/ryghoul/akobylee/issues"
   },
-  "homepage": "https://github.com/ryghoul/akowebsite#readme"
+  "homepage": "https://github.com/ryghoul/akobylee#readme"
 }

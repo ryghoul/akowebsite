@@ -687,7 +687,41 @@ function initializeMenuHistory() {
   persistMenuHistory();
 }
 
+const IMAGE_MIME_EXTENSIONS = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/svg+xml': 'svg',
+};
+
+// Any image picked via the file input is staged locally as a base64 data URL
+// (see the file-input handler in ensureMenuEditorModal) so routine edits
+// never touch GitHub. Only at Publish time do staged images become real
+// committed files — this runs first so the JSON snapshot published right
+// after references real paths, not multi-megabyte base64 blobs.
+async function resolveStagedImagesToGitHub() {
+  for (const [id, value] of Object.entries(MENU_IMAGES)) {
+    const match = /^data:([^;]+);base64,/.exec(value || '');
+    if (!match) continue;
+
+    const ext = IMAGE_MIME_EXTENSIONS[match[1]] || 'png';
+    const response = await fetch('/api/github/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ dataUrl: value, folder: 'Pictures/menu', filename: `${id}.${ext}` }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `Failed to upload image for "${id}".`);
+    }
+    MENU_IMAGES[id] = payload.path;
+  }
+}
+
 async function publishMenuStateToGitHub() {
+  await resolveStagedImagesToGitHub();
   await syncMenuStateToServer(cloneSnapshot(buildMenuSnapshot()));
 
   const response = await fetch(MENU_PUBLISH_URL, {

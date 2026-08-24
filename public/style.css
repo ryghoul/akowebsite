@@ -655,6 +655,12 @@ body.editor-enabled .mrow.is-selected {
   object-fit: cover;
 }
 
+.cart-item-emoji {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
 .cart-item-name {
   font-size: 13px;
   font-weight: 600;

@@ -48,6 +48,7 @@ const GITHUB_REPO = process.env.GITHUB_REPO || (repoMatch ? repoMatch[2] : '');
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const MENU_STATE_REPO_PATH = process.env.MENU_STATE_REPO_PATH || 'data/menu-state.json';
+const SHOP_CATALOG_REPO_PATH = process.env.SHOP_CATALOG_REPO_PATH || 'data/shop-catalog.json';
 
 const ADMIN_USER = process.env.ADMIN_USER || 'akostaff';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'teaparasaamin';
@@ -84,6 +85,7 @@ try {
 }
 
 const Product = require('./models/Product');
+const OrderEvent = require('./models/OrderEvent');
 
 // ─────────────────────────────────────────────────────────────
 // Middleware
@@ -198,7 +200,11 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-async function publishMenuSnapshotToGitHub(snapshot) {
+// Commits (creates or updates) a single file in the GitHub repo via the
+// Contents API — get-sha-then-PUT, so it works whether the file already
+// exists or not. `base64Content` must already be base64-encoded (callers
+// decide whether they're encoding JSON text or binary image data).
+async function commitFileToGitHub(repoPath, base64Content, commitMessage) {
   if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
     throw new Error('GitHub publishing is not configured. Set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO.');
   }
@@ -207,12 +213,12 @@ async function publishMenuSnapshotToGitHub(snapshot) {
     throw new Error('This Node runtime does not provide fetch().');
   }
 
-  const encodedPath = MENU_STATE_REPO_PATH.split('/').map(segment => encodeURIComponent(segment)).join('/');
+  const encodedPath = repoPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
   const url = `https://api.github.com/repos/${encodeURIComponent(GITHUB_OWNER)}/${encodeURIComponent(GITHUB_REPO)}/contents/${encodedPath}`;
   const headers = {
     Authorization: `Bearer ${GITHUB_TOKEN}`,
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'ako-menu-editor',
+    'User-Agent': 'ako-editor',
   };
 
   let sha;
@@ -232,9 +238,9 @@ async function publishMenuSnapshotToGitHub(snapshot) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      message: `Update shared menu state (${new Date().toISOString()})`,
+      message: commitMessage,
       branch: GITHUB_BRANCH,
-      content: Buffer.from(JSON.stringify(snapshot, null, 2) + '\n', 'utf8').toString('base64'),
+      content: base64Content,
       sha,
     }),
   });
@@ -248,7 +254,13 @@ async function publishMenuSnapshotToGitHub(snapshot) {
   return {
     commitSha: payload.commit?.sha || '',
     commitUrl: payload.commit?.html_url || '',
+    path: payload.content?.path || repoPath,
   };
+}
+
+async function publishMenuSnapshotToGitHub(snapshot) {
+  const base64 = Buffer.from(JSON.stringify(snapshot, null, 2) + '\n', 'utf8').toString('base64');
+  return commitFileToGitHub(MENU_STATE_REPO_PATH, base64, `Update shared menu state (${new Date().toISOString()})`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -352,8 +364,11 @@ const successFile = path.join(STATIC_ROOT, 'success.html');
 const shopFile    = path.join(STATIC_ROOT, 'shop.html');
 const indexFile   = path.join(STATIC_ROOT, 'index.html');
 
-app.get('/success', (_req, res) => res.sendFile(successFile));
-app.get('/success.html', (_req, res) => res.sendFile(successFile));
+const sendSuccessPage = (_req, res) => res.sendFile(successFile, err => {
+  if (err) res.status(404).send('No success page. Ensure public/success.html exists.');
+});
+app.get('/success', sendSuccessPage);
+app.get('/success.html', sendSuccessPage);
 app.get('/shop', (_req, res) => exists(shopFile) ? res.sendFile(shopFile) : res.redirect('/success.html'));
 app.get('/shop.html', (_req, res) => exists(shopFile) ? res.sendFile(shopFile) : res.redirect('/success.html'));
 
@@ -427,6 +442,36 @@ app.post('/contact', corsMW, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// Shared checkout stock decrement (used only from the server-verified
+// confirm-order path below — never call this from an unauthenticated,
+// client-triggered route, since nothing here confirms payment happened).
+// ─────────────────────────────────────────────────────────────
+
+// Guarded $inc-with-rollback, one sku at a time — no Mongo transaction
+// (no replica set configured), same discipline as the rest of this file.
+async function decrementInventoryForCart(cartLines) {
+  const decremented = [];
+  for (const line of cartLines) {
+    const sku = String(line?.sku || '').trim();
+    const qty = Math.max(1, parseInt(line?.qty, 10) || 0);
+    if (!sku || !Number.isFinite(qty)) continue;
+
+    const result = await Inventory.updateOne(
+      { sku, stock: { $gte: qty } },
+      { $inc: { stock: -qty } }
+    );
+
+    if (result.modifiedCount !== 1) {
+      for (const prev of decremented) {
+        await Inventory.updateOne({ sku: prev.sku }, { $inc: { stock: prev.qty } });
+      }
+      throw new Error(`Insufficient stock for ${sku}.`);
+    }
+    decremented.push({ sku, qty });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // Stripe: Create Checkout Session  (only if Stripe is configured)
 // ─────────────────────────────────────────────────────────────
 if (stripe) {
@@ -437,15 +482,56 @@ if (stripe) {
         return res.status(400).json({ error: 'No items in request.' });
       }
 
-      const line_items = items.map(i => ({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: i.name },
-          unit_amount: i.price, // cents
-        },
-        quantity: i.quantity,
-        adjustable_quantity: { enabled: true, minimum: 1, maximum: 10 },
-      }));
+      // Sanitize to {sku, qty} — sku is required now; name/price (if the
+      // client still sends them) are ignored, never trusted for pricing.
+      const cart = [];
+      for (const item of items) {
+        const sku = String(item?.sku || '').trim();
+        const qty = Math.max(1, parseInt(item?.quantity, 10) || 0);
+        if (!sku || !Number.isFinite(qty)) {
+          return res.status(400).json({ error: 'Each item needs a valid sku and quantity.' });
+        }
+        cart.push({ sku, qty });
+      }
+
+      // Resolve every sku to its live Product doc server-side. Only active
+      // products are purchasable — this check is intentionally separate
+      // from the decrement-at-confirm step, which must still work even if
+      // staff deactivates/deletes the product after payment goes through.
+      const products = await Product.find({ active: true }).lean();
+      const skuToProduct = {};
+      for (const p of products) {
+        for (const size of p.sizes) skuToProduct[`${p.productKey}|${size}`] = p;
+      }
+
+      const line_items = [];
+      for (const line of cart) {
+        const product = skuToProduct[line.sku];
+        if (!product) {
+          return res.status(400).json({ error: `"${line.sku}" is not an available item.` });
+        }
+        line_items.push({
+          price_data: {
+            currency: 'usd',
+            product_data: { name: product.name },
+            unit_amount: product.price, // cents, resolved server-side
+          },
+          quantity: line.qty,
+          // Disabled deliberately: the site's own cart drawer already lets
+          // customers adjust quantity before checkout. If Stripe's hosted
+          // UI could also adjust it, the cart snapshot we stash in session
+          // metadata below (and decrement from at confirm-order time) could
+          // go stale relative to what was actually paid for.
+          adjustable_quantity: { enabled: false },
+        });
+      }
+
+      const cartMetadata = JSON.stringify(cart);
+      if (cartMetadata.length > 450) {
+        // Stripe caps metadata values at 500 chars; fail loudly rather than
+        // silently truncate the cart we'll later decrement stock from.
+        return res.status(400).json({ error: 'Cart is too large to check out in one order — please split it into smaller orders.' });
+      }
 
       const successUrl = `${PUBLIC_BASE_URL}/success.html?paid=1&session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl  = exists(shopFile)
@@ -459,6 +545,7 @@ if (stripe) {
         shipping_address_collection: { allowed_countries: ['US','CA','GB','AU','JP','DE','FR','MX','SG'] },
         success_url: successUrl,
         cancel_url:  cancelUrl,
+        metadata: { cart: cartMetadata },
       });
 
       res.json({ url: session.url });
@@ -468,8 +555,10 @@ if (stripe) {
     }
   });
 
-  // Confirm Order (no webhook) → send emails
-  const emailedSessions = new Set();
+  // Confirm Order (no webhook) → decrement stock + send emails, exactly once
+  // per session. Idempotency is claimed via a unique OrderEvent insert in
+  // Mongo (not an in-memory Set) so it survives a server restart between a
+  // customer's page refresh and this request.
   function tryGetMailer() { try { return getTransporter(); } catch { return null; } }
 
   app.get('/api/confirm-order', async (req, res) => {
@@ -485,21 +574,51 @@ if (stripe) {
         return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
       }
 
+      let claimed = true;
+      let orderEvent;
+      try {
+        orderEvent = await OrderEvent.create({ sessionId: session_id });
+      } catch (err) {
+        if (err.code === 11000) { // already claimed by an earlier request for this session
+          claimed = false;
+          orderEvent = await OrderEvent.findOne({ sessionId: session_id });
+        } else {
+          throw err;
+        }
+      }
+
+      if (claimed) {
+        try {
+          let cartLines = [];
+          try { cartLines = JSON.parse(session.metadata?.cart || '[]'); } catch { cartLines = []; }
+          if (Array.isArray(cartLines) && cartLines.length) {
+            await decrementInventoryForCart(cartLines);
+          }
+          orderEvent.decrementedAt = new Date();
+          await orderEvent.save();
+        } catch (err) {
+          // Customer already paid via Stripe — never fail their confirmation
+          // page over a stock-accounting hiccup. Just log it for follow-up.
+          console.error('[confirm-order] decrement error:', err);
+        }
+      }
+
       const mailer = tryGetMailer();
-      if (mailer && !emailedSessions.has(session_id)) {
-        const items = session.line_items?.data || [];
-        const customerEmail = session.customer_details?.email || session.customer_email;
-        const name = session.customer_details?.name || 'Customer';
-        const amountTotal = (session.amount_total || 0) / 100;
-        const currency = (session.currency || 'usd').toUpperCase();
+      if (mailer && claimed) {
+        try {
+          const items = session.line_items?.data || [];
+          const customerEmail = session.customer_details?.email || session.customer_email;
+          const name = session.customer_details?.name || 'Customer';
+          const amountTotal = (session.amount_total || 0) / 100;
+          const currency = (session.currency || 'usd').toUpperCase();
 
-        const list = items.map(i => {
-          const unit = (i.price?.unit_amount || 0) / 100;
-          const desc = i.description || i.price?.product || 'Item';
-          return `• ${desc} — ${i.quantity} × $${unit.toFixed(2)}`;
-        }).join('\n');
+          const list = items.map(i => {
+            const unit = (i.price?.unit_amount || 0) / 100;
+            const desc = i.description || i.price?.product || 'Item';
+            return `• ${desc} — ${i.quantity} × $${unit.toFixed(2)}`;
+          }).join('\n');
 
-        const receiptText = `Thanks for your order, ${name}!
+          const receiptText = `Thanks for your order, ${name}!
 
 Order Summary
 ${list || '(no items?)'}
@@ -508,29 +627,33 @@ Total: $${amountTotal.toFixed(2)} ${currency}
 
 — AKO by Lee`;
 
-        if (customerEmail) {
+          if (customerEmail) {
+            await mailer.sendMail({
+              from: EMAIL_USER,
+              to: customerEmail,
+              subject: 'AKO by Lee — Order Confirmation',
+              text: receiptText,
+            });
+          }
+
           await mailer.sendMail({
             from: EMAIL_USER,
-            to: customerEmail,
-            subject: 'AKO by Lee — Order Confirmation',
-            text: receiptText,
-          });
-        }
-
-        await mailer.sendMail({
-          from: EMAIL_USER,
-          to: TO_EMAIL || EMAIL_USER,
-          subject: `New Order — ${customerEmail || name}`,
-          text: `Session: ${session.id}
+            to: TO_EMAIL || EMAIL_USER,
+            subject: `New Order — ${customerEmail || name}`,
+            text: `Session: ${session.id}
 Email: ${customerEmail || 'N/A'}
 Name: ${name}
 Total: $${amountTotal.toFixed(2)} ${currency}
 
 Items:
 ${list || '(no items?)'}`,
-        });
+          });
 
-        emailedSessions.add(session_id);
+          orderEvent.emailedAt = new Date();
+          await orderEvent.save();
+        } catch (err) {
+          console.error('[confirm-order] email error:', err);
+        }
       }
 
       res.json({ ok: true, emailed: true });
@@ -581,6 +704,245 @@ app.get('/api/shop-catalog', async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// Shop Catalog API (write) — staff only
+// ─────────────────────────────────────────────────────────────
+
+// Pulls out only the fields present in `body`, validating each as it goes.
+// `partial: true` (used for PUT) skips the "required" checks for fields the
+// caller didn't send, so an update can touch just one field at a time.
+function sanitizeProductInput(body, { partial = false } = {}) {
+  const out = {};
+  const errors = [];
+
+  if (!partial || body.section !== undefined) {
+    const section = String(body.section || '').trim();
+    if (!section) errors.push('section is required');
+    out.section = section;
+  }
+  if (!partial || body.name !== undefined) {
+    const name = String(body.name || '').trim();
+    if (!name) errors.push('name is required');
+    out.name = name;
+  }
+  if (!partial || body.price !== undefined) {
+    const price = Number(body.price);
+    if (!Number.isFinite(price) || price < 0) errors.push('price must be a non-negative number (cents)');
+    out.price = price;
+  }
+  if (!partial || body.sizes !== undefined) {
+    const rawSizes = Array.isArray(body.sizes) ? body.sizes : [];
+    const sizes = [...new Set(rawSizes.map(s => String(s).trim()).filter(Boolean))];
+    if (!sizes.length) errors.push('sizes must be a non-empty array');
+    if (sizes.some(s => s.includes('|'))) errors.push('sizes cannot contain "|"');
+    out.sizes = sizes;
+  }
+
+  if (body.description !== undefined) out.description = String(body.description || '').trim();
+  if (body.image !== undefined) out.image = String(body.image || '').trim();
+  if (body.tagLabel !== undefined) out.tagLabel = String(body.tagLabel || '').trim();
+  if (body.colorHex !== undefined) out.colorHex = String(body.colorHex || '').trim();
+  if (body.accentHex !== undefined) out.accentHex = String(body.accentHex || '').trim();
+  if (body.specs !== undefined) out.specs = String(body.specs || '').trim();
+  if (body.presale !== undefined) out.presale = !!body.presale;
+  if (body.order !== undefined) out.order = Number(body.order) || 0;
+  if (body.active !== undefined) out.active = !!body.active;
+
+  return { data: out, errors };
+}
+
+// Makes sure an Inventory row exists (defaulting to 0 stock) for every sku a
+// product needs, without touching rows that already exist. No transaction —
+// each upsert is independently atomic, matching the rest of this file's
+// no-replica-set discipline.
+async function ensureInventoryRowsForProduct(productKey, sizes) {
+  await Promise.all(sizes.map(size =>
+    Inventory.updateOne(
+      { sku: `${productKey}|${size}` },
+      { $setOnInsert: { stock: 0 } },
+      { upsert: true }
+    )
+  ));
+}
+
+// POST /api/shop-catalog -> create a product
+app.post('/api/shop-catalog', requireAdmin, async (req, res) => {
+  try {
+    const productKey = String(req.body?.productKey || '').trim();
+    if (!productKey) return res.status(400).json({ ok: false, error: 'productKey is required.' });
+
+    const { data, errors } = sanitizeProductInput(req.body || {});
+    if (errors.length) return res.status(400).json({ ok: false, error: errors.join('; ') });
+
+    const existing = await Product.findOne({ productKey }).lean();
+    if (existing) return res.status(409).json({ ok: false, error: `A product with productKey "${productKey}" already exists.` });
+
+    const product = await Product.create({ productKey, ...data });
+    await ensureInventoryRowsForProduct(productKey, product.sizes);
+
+    res.json({ ok: true, product });
+  } catch (e) {
+    console.error('[shop-catalog] create error:', e);
+    if (e.name === 'ValidationError') return res.status(400).json({ ok: false, error: e.message });
+    res.status(500).json({ ok: false, error: 'Failed to create product.' });
+  }
+});
+
+// PUT /api/shop-catalog/:productKey -> update a product (productKey itself is immutable)
+app.put('/api/shop-catalog/:productKey', requireAdmin, async (req, res) => {
+  try {
+    const productKey = req.params.productKey; // Express already decodeURIComponent()s this
+    const existing = await Product.findOne({ productKey });
+    if (!existing) return res.status(404).json({ ok: false, error: 'Product not found.' });
+
+    if (req.body?.productKey !== undefined && String(req.body.productKey).trim() !== productKey) {
+      return res.status(400).json({ ok: false, error: 'productKey cannot be changed. Delete and recreate instead.' });
+    }
+
+    const { data, errors } = sanitizeProductInput(req.body || {}, { partial: true });
+    if (errors.length) return res.status(400).json({ ok: false, error: errors.join('; ') });
+
+    const previousSizes = new Set(existing.sizes);
+    Object.assign(existing, data);
+    await existing.save();
+
+    const newSizes = existing.sizes.filter(s => !previousSizes.has(s));
+    if (newSizes.length) await ensureInventoryRowsForProduct(productKey, newSizes);
+
+    res.json({ ok: true, product: existing });
+  } catch (e) {
+    console.error('[shop-catalog] update error:', e);
+    if (e.name === 'ValidationError') return res.status(400).json({ ok: false, error: e.message });
+    res.status(500).json({ ok: false, error: 'Failed to update product.' });
+  }
+});
+
+// DELETE /api/shop-catalog/:productKey -> remove a product listing
+// (Inventory rows are left untouched — harmless orphans, avoids losing stock
+// history and keeps a stale cart referencing this sku from crashing checkout.)
+app.delete('/api/shop-catalog/:productKey', requireAdmin, async (req, res) => {
+  try {
+    const productKey = req.params.productKey;
+    const result = await Product.deleteOne({ productKey });
+    if (!result.deletedCount) return res.status(404).json({ ok: false, error: 'Product not found.' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[shop-catalog] delete error:', e);
+    res.status(500).json({ ok: false, error: 'Failed to delete product.' });
+  }
+});
+
+// POST /api/shop-catalog/:productKey/stock -> set an absolute stock count per size
+// (a $set, not a delta — staff are entering a physical count, not an adjustment)
+app.post('/api/shop-catalog/:productKey/stock', requireAdmin, async (req, res) => {
+  try {
+    const productKey = req.params.productKey;
+    const product = await Product.findOne({ productKey }).lean();
+    if (!product) return res.status(404).json({ ok: false, error: 'Product not found.' });
+
+    const stocks = req.body?.stocks;
+    if (!stocks || typeof stocks !== 'object' || Array.isArray(stocks)) {
+      return res.status(400).json({ ok: false, error: 'stocks must be an object of {size: count}.' });
+    }
+
+    const sizeSet = new Set(product.sizes);
+    const updates = [];
+    for (const [size, rawValue] of Object.entries(stocks)) {
+      if (!sizeSet.has(size)) return res.status(400).json({ ok: false, error: `"${size}" is not a valid size for this product.` });
+      const value = Number(rawValue);
+      if (!Number.isFinite(value) || value < 0) return res.status(400).json({ ok: false, error: `stock for "${size}" must be a non-negative number.` });
+      updates.push({ size, value: Math.floor(value) });
+    }
+
+    await Promise.all(updates.map(({ size, value }) =>
+      Inventory.updateOne(
+        { sku: `${productKey}|${size}` },
+        { $set: { stock: value } },
+        { upsert: true }
+      )
+    ));
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[shop-catalog] stock update error:', e);
+    res.status(500).json({ ok: false, error: 'Failed to update stock.' });
+  }
+});
+
+// POST /api/shop-catalog/publish -> commit the current catalog to GitHub as
+// a JSON snapshot. Server re-reads Product itself (not client-supplied) so
+// this can never publish stale data. This is a backup/version-history mirror
+// only — MongoDB remains the live source of truth for what the site serves;
+// publishing here does not change that. Stock/Inventory is never included.
+app.post('/api/shop-catalog/publish', requireAdmin, async (_req, res) => {
+  try {
+    const products = await Product.find({}, { _id: 0, __v: 0, createdAt: 0, updatedAt: 0 })
+      .sort({ section: 1, order: 1 })
+      .lean();
+
+    const publishResult = await commitFileToGitHub(
+      SHOP_CATALOG_REPO_PATH,
+      Buffer.from(JSON.stringify(products, null, 2) + '\n', 'utf8').toString('base64'),
+      `Update shop catalog (${new Date().toISOString()})`
+    );
+
+    res.json({ ok: true, publishResult });
+  } catch (e) {
+    console.error('[shop-catalog] publish error:', e);
+    res.status(500).json({ ok: false, error: e.message || 'Failed to publish shop catalog.' });
+  }
+});
+
+// POST /api/github/upload-image -> commit a staff-picked image file to the
+// repo. Shared by the Menu and Shop editors, both of which stage a picked
+// image as a base64 data URL locally and only call this at Publish time —
+// so routine edits never touch GitHub, only a deliberate Publish click does.
+const MAX_UPLOAD_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB — repo history keeps every version forever
+const ALLOWED_IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']);
+
+app.post('/api/github/upload-image', requireAdmin, async (req, res) => {
+  try {
+    const { dataUrl, folder, filename } = req.body || {};
+
+    const match = /^data:([^;]+);base64,(.+)$/.exec(String(dataUrl || ''));
+    if (!match) return res.status(400).json({ ok: false, error: 'dataUrl must be a base64 data: URL.' });
+    const [, mimeType, base64Data] = match;
+    if (!ALLOWED_IMAGE_MIME.has(mimeType)) {
+      return res.status(400).json({ ok: false, error: `Unsupported image type: ${mimeType}` });
+    }
+
+    const approxBytes = Math.ceil(base64Data.length * 0.75);
+    if (approxBytes > MAX_UPLOAD_IMAGE_BYTES) {
+      return res.status(400).json({ ok: false, error: `Image is too large (max ${MAX_UPLOAD_IMAGE_BYTES / (1024 * 1024)}MB).` });
+    }
+
+    const allowedFolders = new Set(['Pictures/menu', 'Pictures/merch']);
+    if (!allowedFolders.has(folder)) {
+      return res.status(400).json({ ok: false, error: 'folder must be one of: ' + [...allowedFolders].join(', ') });
+    }
+
+    const safeName = String(filename || '')
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (!safeName) return res.status(400).json({ ok: false, error: 'filename is required.' });
+
+    const uniqueName = `${Date.now()}-${safeName}`;
+    const repoPath = `public/${folder}/${uniqueName}`;
+
+    const publishResult = await commitFileToGitHub(
+      repoPath,
+      base64Data,
+      `Upload image ${uniqueName} (${new Date().toISOString()})`
+    );
+
+    res.json({ ok: true, path: `${folder}/${uniqueName}`, publishResult });
+  } catch (e) {
+    console.error('[github] image upload error:', e);
+    res.status(500).json({ ok: false, error: e.message || 'Failed to upload image.' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // Inventory API (atomic decrement, no replica set required)
 // ─────────────────────────────────────────────────────────────
 
@@ -594,47 +956,6 @@ app.get('/api/inventory', async (_req, res) => {
   } catch (e) {
     console.error('[inventory] load error:', e);
     res.status(500).json({ ok: false, error: 'Failed to load inventory' });
-  }
-});
-
-// POST /api/checkout { cart:[{sku,qty}] }
-app.post('/api/checkout', async (req, res) => {
-  try {
-    const cart = Array.isArray(req.body.cart) ? req.body.cart : [];
-    if (!cart.length) return res.status(400).json({ ok: false, error: 'Cart is empty' });
-
-    // sanitize
-    for (const line of cart) {
-      line.sku = String(line.sku || '').trim();
-      line.qty = Math.max(1, parseInt(line.qty, 10) || 0);
-      if (!line.sku || !Number.isFinite(line.qty)) {
-        return res.status(400).json({ ok: false, error: 'Bad cart line' });
-      }
-    }
-
-    const decremented = [];
-
-    // one-by-one guarded decrements + rollback on failure
-    for (const line of cart) {
-      const result = await Inventory.updateOne(
-        { sku: line.sku, stock: { $gte: line.qty } },
-        { $inc: { stock: -line.qty } }
-      );
-
-      if (result.modifiedCount !== 1) {
-        // rollback
-        for (const prev of decremented) {
-          await Inventory.updateOne({ sku: prev.sku }, { $inc: { stock: prev.qty } });
-        }
-        return res.status(409).json({ ok: false, error: `Insufficient stock for ${line.sku}.` });
-      }
-      decremented.push({ sku: line.sku, qty: line.qty });
-    }
-
-    res.json({ ok: true });
-  } catch (e) {
-    console.error('[checkout] error:', e);
-    res.status(500).json({ ok: false, error: 'Checkout failed' });
   }
 });
 
