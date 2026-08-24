@@ -125,6 +125,12 @@
     render();
   }
 
+  /* ── Clear cart (called by success.js after a completed purchase) ── */
+  function clearCart() {
+    cart = [];
+    render();
+  }
+
   /* ── Change qty ── */
   function changeQty(sku, delta) {
     const item = cart.find(i => i.sku === sku);
@@ -247,6 +253,7 @@
   /* ── Expose globally so shop.js can call addToCart ── */
   window.AKO = window.AKO || {};
   window.AKO.addToCart = addToCart;
+  window.AKO.clearCart = clearCart;
 
   render(); // initial render — reflects any cart restored from localStorage above
 })();
@@ -518,6 +525,13 @@
 
     if (!document.getElementById('editorToolbar')) {
       document.body.appendChild(onMenu ? buildMenuToolbar() : buildShopToolbar());
+    }
+
+    // Shop's catalog render filters out inactive products when not in editor
+    // mode, so a page that loaded before login needs a re-fetch now that
+    // staff should be able to see (and restock/re-enable) hidden items too.
+    if (onShop && window.AKOShop && typeof window.AKOShop.reload === 'function') {
+      window.AKOShop.reload();
     }
 
     if (window.AKOEditor && typeof window.AKOEditor.refreshMenuEditorState === 'function') {

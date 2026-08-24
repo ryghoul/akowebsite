@@ -98,7 +98,11 @@ app.use(cors({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+// Default 100kb is too small for the shop/menu editors' staged image uploads —
+// a picked photo rides along as a base64 data URL in the regular Save/Edit
+// request body (not just the dedicated /api/github/upload-image route), and
+// base64 adds ~33% overhead on top of the 5MB image cap enforced there.
+app.use(express.json({ limit: '8mb' }));
 app.use(express.static(STATIC_ROOT, { fallthrough: true }));
 
 const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
@@ -534,9 +538,10 @@ if (stripe) {
       }
 
       const successUrl = `${PUBLIC_BASE_URL}/success.html?paid=1&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl  = exists(shopFile)
-        ? `${PUBLIC_BASE_URL}/shop.html?canceled=1`
-        : `${PUBLIC_BASE_URL}/success.html?canceled=1`;
+      // success.html has dedicated "checkout canceled" messaging — route
+      // cancels there too rather than back to shop.html, which silently
+      // ignores the ?canceled=1 param.
+      const cancelUrl = `${PUBLIC_BASE_URL}/success.html?canceled=1`;
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -555,10 +560,10 @@ if (stripe) {
     }
   });
 
-  // Confirm Order (no webhook) → decrement stock + send emails, exactly once
-  // per session. Idempotency is claimed via a unique OrderEvent insert in
-  // Mongo (not an in-memory Set) so it survives a server restart between a
-  // customer's page refresh and this request.
+  // Confirm Order (no webhook) → decrement stock + send emails, each at most
+  // once per session, tracked independently. Idempotency is anchored to a
+  // unique OrderEvent doc in Mongo (not an in-memory Set) so it survives a
+  // server restart between a customer's page refresh and this request.
   function tryGetMailer() { try { return getTransporter(); } catch { return null; } }
 
   app.get('/api/confirm-order', async (req, res) => {
@@ -574,20 +579,25 @@ if (stripe) {
         return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
       }
 
-      let claimed = true;
+      // Find-or-create the OrderEvent doc for this session (unique index on
+      // sessionId makes concurrent creates safe — the loser just re-fetches).
       let orderEvent;
       try {
         orderEvent = await OrderEvent.create({ sessionId: session_id });
       } catch (err) {
-        if (err.code === 11000) { // already claimed by an earlier request for this session
-          claimed = false;
+        if (err.code === 11000) {
           orderEvent = await OrderEvent.findOne({ sessionId: session_id });
         } else {
           throw err;
         }
       }
 
-      if (claimed) {
+      // Decrement and email are claimed independently via their own
+      // decrementedAt/emailedAt fields, not a single shared flag — so if
+      // e.g. email fails on the first attempt (decrement already succeeded),
+      // a later retry (page refresh) still retries the email without
+      // re-running (and double-decrementing) the stock update.
+      if (!orderEvent.decrementedAt) {
         try {
           let cartLines = [];
           try { cartLines = JSON.parse(session.metadata?.cart || '[]'); } catch { cartLines = []; }
@@ -599,12 +609,13 @@ if (stripe) {
         } catch (err) {
           // Customer already paid via Stripe — never fail their confirmation
           // page over a stock-accounting hiccup. Just log it for follow-up.
+          // decrementedAt stays unset so the next confirm-order call retries.
           console.error('[confirm-order] decrement error:', err);
         }
       }
 
       const mailer = tryGetMailer();
-      if (mailer && claimed) {
+      if (mailer && !orderEvent.emailedAt) {
         try {
           const items = session.line_items?.data || [];
           const customerEmail = session.customer_details?.email || session.customer_email;

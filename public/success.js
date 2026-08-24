@@ -38,6 +38,9 @@
         throw new Error(data.error || 'Unable to confirm your order.');
       }
       showState('success', 'Thank you for your order!', 'A confirmation email is on its way. We can’t wait for you to try it.');
+      // Order is confirmed paid — clear the persisted cart so the items
+      // just bought don't linger and invite a duplicate checkout.
+      window.AKO?.clearCart?.();
     } catch (err) {
       console.error('[success] confirm-order failed:', err);
       showState('error', 'Something went wrong', err.message || 'We couldn’t confirm your order. If you were charged, please contact us and we’ll sort it out.');

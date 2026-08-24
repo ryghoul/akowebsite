@@ -521,7 +521,14 @@ function renderCurrentSections(currentSections) {
 
   currentSections.forEach(sectionData => {
     const sectionTitle = (sectionData.title || '').trim();
-    if (!sectionTitle) return; // drop stale/corrupt sections with no real title (e.g. old Archive capture bug)
+    if (!sectionTitle) {
+      // Drop stale/corrupt sections with no real title (e.g. old Archive
+      // capture bug) rather than showing a fallback "UNTITLED SECTION" —
+      // but log it, since this otherwise makes drinks disappear with zero
+      // visible trace if a section ever ends up blank-titled some other way.
+      console.warn('[menu] dropping a saved section with a blank title — rows:', (sectionData.rows || []).map(r => r.id));
+      return;
+    }
 
     const section = document.createElement('section');
     section.className = 'menu-section';
