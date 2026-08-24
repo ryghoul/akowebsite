@@ -1,0 +1,152 @@
+[
+  {
+    "productKey": "tote|Black",
+    "accentHex": "",
+    "active": true,
+    "colorHex": "#1a1a1a",
+    "description": "Black colorway. Reinforced shoulder straps, one large main compartment, 3 external pockets. One size — 19.69\" × 15.75\", gusset 11.8\", strap 23.62\". 9.4 oz, 100% cotton canvas.",
+    "image": "Pictures/merch/blacktote.png",
+    "name": "AKO* Tea Bag",
+    "order": 0,
+    "presale": false,
+    "price": 3500,
+    "section": "bags",
+    "sizes": [
+      "NOSIZE"
+    ],
+    "specs": "",
+    "tagLabel": ""
+  },
+  {
+    "productKey": "tote|Green",
+    "accentHex": "",
+    "active": true,
+    "colorHex": "#2d4a2d",
+    "description": "Green colorway. Reinforced shoulder straps, one large main compartment, 3 external pockets. One size — 19.69\" × 15.75\", gusset 11.8\", strap 23.62\". 9.4 oz, 100% cotton canvas.",
+    "image": "Pictures/merch/greentote.png",
+    "name": "AKO* Tea Bag",
+    "order": 1,
+    "presale": false,
+    "price": 3500,
+    "section": "bags",
+    "sizes": [
+      "NOSIZE"
+    ],
+    "specs": "",
+    "tagLabel": ""
+  },
+  {
+    "productKey": "bandana|MORE TEA",
+    "accentHex": "#1a1a1a",
+    "active": true,
+    "colorHex": "#e8e0d4",
+    "description": "AKO* Bandana S.2 — Black colorway. 22\" × 22\".",
+    "image": "Pictures/merch/moretea.png",
+    "name": "MORE TEA",
+    "order": 0,
+    "presale": true,
+    "price": 2000,
+    "section": "bandanas",
+    "sizes": [
+      "NOSIZE"
+    ],
+    "specs": "",
+    "tagLabel": ""
+  },
+  {
+    "productKey": "bandana|PERFORMATIVE",
+    "accentHex": "#cbc0b2",
+    "active": true,
+    "colorHex": "#550b14",
+    "description": "AKO* Bandana S.2 — Matcha design. 22\" × 22\".",
+    "image": "Pictures/merch/performative.png",
+    "name": "PERFORMATIVE",
+    "order": 1,
+    "presale": true,
+    "price": 2000,
+    "section": "bandanas",
+    "sizes": [
+      "NOSIZE"
+    ],
+    "specs": "",
+    "tagLabel": ""
+  },
+  {
+    "productKey": "bandana|REACH",
+    "accentHex": "#550b14",
+    "active": true,
+    "colorHex": "#cbc0b2",
+    "description": "AKO* Bandana S.2 — Hand design. 22\" × 22\".",
+    "image": "Pictures/merch/reach.png",
+    "name": "REACH",
+    "order": 2,
+    "presale": true,
+    "price": 2000,
+    "section": "bandanas",
+    "sizes": [
+      "NOSIZE"
+    ],
+    "specs": "",
+    "tagLabel": ""
+  },
+  {
+    "productKey": "test|publish-1787542277639",
+    "section": "publishtest",
+    "name": "Publish Test Item",
+    "description": "",
+    "image": "Pictures/merch/1787542279487-test-publish-1787542277639.png",
+    "price": 500,
+    "sizes": [
+      "NOSIZE"
+    ],
+    "tagLabel": "",
+    "colorHex": "",
+    "accentHex": "",
+    "specs": "",
+    "presale": false,
+    "order": 0,
+    "active": true
+  },
+  {
+    "productKey": "shirt|V1",
+    "accentHex": "",
+    "active": true,
+    "colorHex": "",
+    "description": "",
+    "image": "Pictures/merch/shirt4.png",
+    "name": "\"Oh no, my matcha!\" Boxy Tee V.1",
+    "order": 0,
+    "presale": false,
+    "price": 3000,
+    "section": "shirts",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "specs": "Wide neck ribbing · Garment dyed · Side seamed\nShoulder-to-shoulder tape · Double needle hems · Preshrunk\n7.1 oz · 16 Singles · 100% carded cotton · Relaxed fit",
+    "tagLabel": "Faded Bone"
+  },
+  {
+    "productKey": "shirt|V2",
+    "accentHex": "",
+    "active": true,
+    "colorHex": "",
+    "description": "",
+    "image": "Pictures/merch/shirt5.png",
+    "name": "\"Oh no, my matcha!\" Boxy Tee V.2",
+    "order": 1,
+    "presale": false,
+    "price": 3000,
+    "section": "shirts",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "specs": "Wide neck ribbing · Garment dyed · Side seamed\nShoulder-to-shoulder tape · Double needle hems · Preshrunk\n7.1 oz · 16 Singles · 100% carded cotton · Relaxed fit",
+    "tagLabel": "Faded Bone"
+  }
+]
