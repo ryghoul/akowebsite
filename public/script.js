@@ -53,10 +53,23 @@
     if (e.key === 'Escape') { closeNav(); closeCart(); }
   });
 
+  // Wires the standard editor-modal dismiss trio (× button, a named Cancel
+  // button, click-on-backdrop) — used by every modal in menu.js/shop-editor.js.
+  function wireModalDismiss(modal, cancelBtnId) {
+    modal.querySelector('.menu-editor-close')?.addEventListener('click', () => modal.classList.add('hidden'));
+    if (cancelBtnId) {
+      modal.querySelector('#' + cancelBtnId)?.addEventListener('click', () => modal.classList.add('hidden'));
+    }
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) modal.classList.add('hidden');
+    });
+  }
+
   /* ── Expose cart open/close globally for shop.js ── */
   window.AKO = window.AKO || {};
   window.AKO.openCart  = openCart;
   window.AKO.closeCart = closeCart;
+  window.AKO.wireModalDismiss = wireModalDismiss;
 
 })();
 
@@ -254,6 +267,7 @@
   window.AKO = window.AKO || {};
   window.AKO.addToCart = addToCart;
   window.AKO.clearCart = clearCart;
+  window.AKO.escapeHtml = escapeHtml;
 
   render(); // initial render — reflects any cart restored from localStorage above
 })();
@@ -296,14 +310,17 @@
     return window.matchMedia('(min-width: 769px)').matches;
   }
 
-  function isMenuPage() {
+  function isPage(filename, selector) {
     const path = window.location.pathname.split('/').pop() || '';
-    return path.toLowerCase() === 'menu.html' || !!document.querySelector('.menu-tab');
+    return path.toLowerCase() === filename || !!document.querySelector(selector);
+  }
+
+  function isMenuPage() {
+    return isPage('menu.html', '.menu-tab');
   }
 
   function isShopPage() {
-    const path = window.location.pathname.split('/').pop() || '';
-    return path.toLowerCase() === 'shop.html' || !!document.querySelector('.shop-wrap');
+    return isPage('shop.html', '.shop-wrap');
   }
 
   function ensureStaffControls() {
@@ -439,6 +456,24 @@
     return btn;
   }
 
+  // "Publish GitHub" is identical in both toolbars — only which
+  // window.AKOEditor method it calls differs.
+  function makePublishButton(methodName) {
+    const btn = makeToolbarButton('Publish GitHub', async () => {
+      if (!window.AKOEditor || typeof window.AKOEditor[methodName] !== 'function') return;
+      btn.disabled = true;
+      const originalLabel = btn.textContent;
+      btn.textContent = 'Publishing...';
+      try {
+        await window.AKOEditor[methodName]();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      }
+    });
+    return btn;
+  }
+
   function buildMenuToolbar() {
     const toolbar = document.createElement('div');
     toolbar.id = 'editorToolbar';
@@ -453,18 +488,7 @@
     const deleteBtn = makeToolbarButton('Delete Selected', () => callEditor('deleteSelectedDrink'));
     const sectionBtn = makeToolbarButton('Create Section', () => callEditor('createMenuSection'));
 
-    const publishBtn = makeToolbarButton('Publish GitHub', async () => {
-      if (!window.AKOEditor || typeof window.AKOEditor.publishMenuStateToGitHub !== 'function') return;
-      publishBtn.disabled = true;
-      const originalLabel = publishBtn.textContent;
-      publishBtn.textContent = 'Publishing...';
-      try {
-        await window.AKOEditor.publishMenuStateToGitHub();
-      } finally {
-        publishBtn.disabled = false;
-        publishBtn.textContent = originalLabel;
-      }
-    });
+    const publishBtn = makePublishButton('publishMenuStateToGitHub');
 
     const exitBtn = makeToolbarButton('Exit Editor', () => setEditorMode(false));
 
@@ -482,18 +506,7 @@
     const stockBtn = makeToolbarButton('Edit Stock', () => callEditor('editSelectedShopItemStock'));
     const deleteBtn = makeToolbarButton('Delete Selected', () => callEditor('deleteSelectedShopItem'));
 
-    const publishBtn = makeToolbarButton('Publish GitHub', async () => {
-      if (!window.AKOEditor || typeof window.AKOEditor.publishShopCatalogToGitHub !== 'function') return;
-      publishBtn.disabled = true;
-      const originalLabel = publishBtn.textContent;
-      publishBtn.textContent = 'Publishing...';
-      try {
-        await window.AKOEditor.publishShopCatalogToGitHub();
-      } finally {
-        publishBtn.disabled = false;
-        publishBtn.textContent = originalLabel;
-      }
-    });
+    const publishBtn = makePublishButton('publishShopCatalogToGitHub');
 
     const exitBtn = makeToolbarButton('Exit Editor', () => setEditorMode(false));
 

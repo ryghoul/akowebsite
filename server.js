@@ -87,6 +87,13 @@ try {
 const Product = require('./models/Product');
 const OrderEvent = require('./models/OrderEvent');
 
+// Sku format used everywhere: `${productKey}|${size}`. Sizes are validated
+// (Product.js) to never contain "|", so splitting off the last segment
+// always recovers the correct productKey even though productKey itself
+// legitimately contains "|" (e.g. "shirt|V1").
+const skuFor = (productKey, size) => `${productKey}|${size}`;
+const productKeyFromSku = (sku) => sku.slice(0, sku.lastIndexOf('|'));
+
 // ─────────────────────────────────────────────────────────────
 // Middleware
 // ─────────────────────────────────────────────────────────────
@@ -262,9 +269,15 @@ async function commitFileToGitHub(repoPath, base64Content, commitMessage) {
   };
 }
 
+// Shared by both JSON-snapshot publishers (menu state, shop catalog) so the
+// encoding stays identical between them.
+function publishJsonToGitHub(repoPath, data, commitMessage) {
+  const base64 = Buffer.from(JSON.stringify(data, null, 2) + '\n', 'utf8').toString('base64');
+  return commitFileToGitHub(repoPath, base64, commitMessage);
+}
+
 async function publishMenuSnapshotToGitHub(snapshot) {
-  const base64 = Buffer.from(JSON.stringify(snapshot, null, 2) + '\n', 'utf8').toString('base64');
-  return commitFileToGitHub(MENU_STATE_REPO_PATH, base64, `Update shared menu state (${new Date().toISOString()})`);
+  return publishJsonToGitHub(MENU_STATE_REPO_PATH, snapshot, `Update shared menu state (${new Date().toISOString()})`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -451,27 +464,31 @@ app.post('/contact', corsMW, async (req, res) => {
 // client-triggered route, since nothing here confirms payment happened).
 // ─────────────────────────────────────────────────────────────
 
-// Guarded $inc-with-rollback, one sku at a time — no Mongo transaction
-// (no replica set configured), same discipline as the rest of this file.
+// Guarded $inc per sku, run concurrently since each line targets a different
+// document (no Mongo transaction — no replica set configured, same
+// discipline as the rest of this file). If any line has insufficient stock,
+// every line that did succeed gets rolled back concurrently too, so this is
+// all-or-nothing for the cart regardless of line order.
 async function decrementInventoryForCart(cartLines) {
-  const decremented = [];
-  for (const line of cartLines) {
-    const sku = String(line?.sku || '').trim();
-    const qty = Math.max(1, parseInt(line?.qty, 10) || 0);
-    if (!sku || !Number.isFinite(qty)) continue;
+  const lines = cartLines
+    .map(line => ({ sku: String(line?.sku || '').trim(), qty: Math.max(1, parseInt(line?.qty, 10) || 0) }))
+    .filter(line => line.sku && Number.isFinite(line.qty));
 
+  const results = await Promise.all(lines.map(async (line) => {
     const result = await Inventory.updateOne(
-      { sku, stock: { $gte: qty } },
-      { $inc: { stock: -qty } }
+      { sku: line.sku, stock: { $gte: line.qty } },
+      { $inc: { stock: -line.qty } }
     );
+    return { ...line, ok: result.modifiedCount === 1 };
+  }));
 
-    if (result.modifiedCount !== 1) {
-      for (const prev of decremented) {
-        await Inventory.updateOne({ sku: prev.sku }, { $inc: { stock: prev.qty } });
-      }
-      throw new Error(`Insufficient stock for ${sku}.`);
-    }
-    decremented.push({ sku, qty });
+  const failed = results.filter(r => !r.ok);
+  if (failed.length) {
+    const succeeded = results.filter(r => r.ok);
+    await Promise.all(succeeded.map(line =>
+      Inventory.updateOne({ sku: line.sku }, { $inc: { stock: line.qty } })
+    ));
+    throw new Error(`Insufficient stock for ${failed.map(f => f.sku).join(', ')}.`);
   }
 }
 
@@ -502,10 +519,14 @@ if (stripe) {
       // products are purchasable — this check is intentionally separate
       // from the decrement-at-confirm step, which must still work even if
       // staff deactivates/deletes the product after payment goes through.
-      const products = await Product.find({ active: true }).lean();
+      // Scoped to just the productKeys actually in this cart rather than
+      // fetching the whole catalog — a checkout request is cart-sized work,
+      // not catalog-sized.
+      const candidateProductKeys = [...new Set(cart.map(line => productKeyFromSku(line.sku)))];
+      const products = await Product.find({ productKey: { $in: candidateProductKeys }, active: true }).lean();
       const skuToProduct = {};
       for (const p of products) {
-        for (const size of p.sizes) skuToProduct[`${p.productKey}|${size}`] = p;
+        for (const size of p.sizes) skuToProduct[skuFor(p.productKey, size)] = p;
       }
 
       const line_items = [];
@@ -579,18 +600,15 @@ if (stripe) {
         return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
       }
 
-      // Find-or-create the OrderEvent doc for this session (unique index on
-      // sessionId makes concurrent creates safe — the loser just re-fetches).
-      let orderEvent;
-      try {
-        orderEvent = await OrderEvent.create({ sessionId: session_id });
-      } catch (err) {
-        if (err.code === 11000) {
-          orderEvent = await OrderEvent.findOne({ sessionId: session_id });
-        } else {
-          throw err;
-        }
-      }
+      // Find-or-create the OrderEvent doc for this session in one round trip.
+      // The unique index on sessionId makes this safe under concurrent
+      // requests — Mongo resolves a racing upsert against the same key to a
+      // single winning insert, so this never throws a duplicate-key error.
+      const orderEvent = await OrderEvent.findOneAndUpdate(
+        { sessionId: session_id },
+        { $setOnInsert: { sessionId: session_id } },
+        { upsert: true, new: true }
+      );
 
       // Decrement and email are claimed independently via their own
       // decrementedAt/emailedAt fields, not a single shared flag — so if
@@ -638,27 +656,28 @@ Total: $${amountTotal.toFixed(2)} ${currency}
 
 — AKO by Lee`;
 
-          if (customerEmail) {
-            await mailer.sendMail({
+          // Independent sends (customer receipt + internal notice) — run
+          // concurrently rather than back-to-back on this user-facing request.
+          await Promise.all([
+            customerEmail ? mailer.sendMail({
               from: EMAIL_USER,
               to: customerEmail,
               subject: 'AKO by Lee — Order Confirmation',
               text: receiptText,
-            });
-          }
-
-          await mailer.sendMail({
-            from: EMAIL_USER,
-            to: TO_EMAIL || EMAIL_USER,
-            subject: `New Order — ${customerEmail || name}`,
-            text: `Session: ${session.id}
+            }) : null,
+            mailer.sendMail({
+              from: EMAIL_USER,
+              to: TO_EMAIL || EMAIL_USER,
+              subject: `New Order — ${customerEmail || name}`,
+              text: `Session: ${session.id}
 Email: ${customerEmail || 'N/A'}
 Name: ${name}
 Total: $${amountTotal.toFixed(2)} ${currency}
 
 Items:
 ${list || '(no items?)'}`,
-          });
+            }),
+          ]);
 
           orderEvent.emailedAt = new Date();
           await orderEvent.save();
@@ -689,7 +708,7 @@ app.get('/api/shop-catalog', async (_req, res) => {
 
     const skus = [];
     for (const p of products) {
-      for (const size of p.sizes) skus.push(`${p.productKey}|${size}`);
+      for (const size of p.sizes) skus.push(skuFor(p.productKey, size));
     }
 
     const inventoryRows = skus.length
@@ -701,7 +720,7 @@ app.get('/api/shop-catalog', async (_req, res) => {
     const catalog = products.map(p => {
       const stock = {};
       for (const size of p.sizes) {
-        const sku = `${p.productKey}|${size}`;
+        const sku = skuFor(p.productKey, size);
         stock[size] = typeof stockBySku[sku] === 'number' ? stockBySku[sku] : 0;
       }
       return { ...p, stock };
@@ -718,6 +737,33 @@ app.get('/api/shop-catalog', async (_req, res) => {
 // Shop Catalog API (write) — staff only
 // ─────────────────────────────────────────────────────────────
 
+// One entry per Product field: how to parse it out of the request body, and
+// (for required fields) how to validate it. Required fields are always
+// processed on a full (non-partial) submit; on a partial submit (PUT) they're
+// only processed — and therefore only validated — if the caller actually
+// sent them, so an update can touch just one field at a time.
+const trimmedString = v => String(v || '').trim();
+const PRODUCT_FIELD_SPECS = [
+  { key: 'section', required: true, parse: trimmedString, valid: v => !!v, message: 'section is required' },
+  { key: 'name', required: true, parse: trimmedString, valid: v => !!v, message: 'name is required' },
+  { key: 'price', required: true, parse: v => Number(v), valid: v => Number.isFinite(v) && v >= 0, message: 'price must be a non-negative number (cents)' },
+  {
+    key: 'sizes', required: true,
+    parse: v => [...new Set((Array.isArray(v) ? v : []).map(s => String(s).trim()).filter(Boolean))],
+    valid: v => v.length > 0 && !v.some(s => s.includes('|')),
+    message: 'sizes must be a non-empty array of strings that do not contain "|"',
+  },
+  { key: 'description', parse: trimmedString },
+  { key: 'image', parse: trimmedString },
+  { key: 'tagLabel', parse: trimmedString },
+  { key: 'colorHex', parse: trimmedString },
+  { key: 'accentHex', parse: trimmedString },
+  { key: 'specs', parse: trimmedString },
+  { key: 'presale', parse: v => !!v },
+  { key: 'order', parse: v => Number(v) || 0 },
+  { key: 'active', parse: v => !!v },
+];
+
 // Pulls out only the fields present in `body`, validating each as it goes.
 // `partial: true` (used for PUT) skips the "required" checks for fields the
 // caller didn't send, so an update can touch just one field at a time.
@@ -725,38 +771,18 @@ function sanitizeProductInput(body, { partial = false } = {}) {
   const out = {};
   const errors = [];
 
-  if (!partial || body.section !== undefined) {
-    const section = String(body.section || '').trim();
-    if (!section) errors.push('section is required');
-    out.section = section;
-  }
-  if (!partial || body.name !== undefined) {
-    const name = String(body.name || '').trim();
-    if (!name) errors.push('name is required');
-    out.name = name;
-  }
-  if (!partial || body.price !== undefined) {
-    const price = Number(body.price);
-    if (!Number.isFinite(price) || price < 0) errors.push('price must be a non-negative number (cents)');
-    out.price = price;
-  }
-  if (!partial || body.sizes !== undefined) {
-    const rawSizes = Array.isArray(body.sizes) ? body.sizes : [];
-    const sizes = [...new Set(rawSizes.map(s => String(s).trim()).filter(Boolean))];
-    if (!sizes.length) errors.push('sizes must be a non-empty array');
-    if (sizes.some(s => s.includes('|'))) errors.push('sizes cannot contain "|"');
-    out.sizes = sizes;
-  }
+  for (const field of PRODUCT_FIELD_SPECS) {
+    const present = body[field.key] !== undefined;
+    if (field.required) {
+      if (partial && !present) continue;
+    } else if (!present) {
+      continue;
+    }
 
-  if (body.description !== undefined) out.description = String(body.description || '').trim();
-  if (body.image !== undefined) out.image = String(body.image || '').trim();
-  if (body.tagLabel !== undefined) out.tagLabel = String(body.tagLabel || '').trim();
-  if (body.colorHex !== undefined) out.colorHex = String(body.colorHex || '').trim();
-  if (body.accentHex !== undefined) out.accentHex = String(body.accentHex || '').trim();
-  if (body.specs !== undefined) out.specs = String(body.specs || '').trim();
-  if (body.presale !== undefined) out.presale = !!body.presale;
-  if (body.order !== undefined) out.order = Number(body.order) || 0;
-  if (body.active !== undefined) out.active = !!body.active;
+    const value = field.parse(body[field.key]);
+    if (field.valid && !field.valid(value)) errors.push(field.message);
+    out[field.key] = value;
+  }
 
   return { data: out, errors };
 }
@@ -768,7 +794,7 @@ function sanitizeProductInput(body, { partial = false } = {}) {
 async function ensureInventoryRowsForProduct(productKey, sizes) {
   await Promise.all(sizes.map(size =>
     Inventory.updateOne(
-      { sku: `${productKey}|${size}` },
+      { sku: skuFor(productKey, size) },
       { $setOnInsert: { stock: 0 } },
       { upsert: true }
     )
@@ -866,7 +892,7 @@ app.post('/api/shop-catalog/:productKey/stock', requireAdmin, async (req, res) =
 
     await Promise.all(updates.map(({ size, value }) =>
       Inventory.updateOne(
-        { sku: `${productKey}|${size}` },
+        { sku: skuFor(productKey, size) },
         { $set: { stock: value } },
         { upsert: true }
       )
@@ -890,9 +916,9 @@ app.post('/api/shop-catalog/publish', requireAdmin, async (_req, res) => {
       .sort({ section: 1, order: 1 })
       .lean();
 
-    const publishResult = await commitFileToGitHub(
+    const publishResult = await publishJsonToGitHub(
       SHOP_CATALOG_REPO_PATH,
-      Buffer.from(JSON.stringify(products, null, 2) + '\n', 'utf8').toString('base64'),
+      products,
       `Update shop catalog (${new Date().toISOString()})`
     );
 

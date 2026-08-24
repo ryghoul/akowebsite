@@ -18,11 +18,9 @@
     return document.body.classList.contains('editor-enabled');
   }
 
-  function escapeHtml(str) {
-    return String(str ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-  }
+  // Shared with script.js (loaded first on every page) rather than
+  // redefined here, so there's one escaping implementation to keep correct.
+  const escapeHtml = window.AKO.escapeHtml;
 
   function formatPrice(cents) {
     const dollars = (Number(cents) || 0) / 100;
@@ -358,8 +356,9 @@
       if (!res.ok || !payload.ok) throw new Error(payload.error || 'Failed to load shop catalog');
 
       catalog = Array.isArray(payload.products) ? payload.products : [];
-      catalogByKey = {};
-      catalog.forEach(p => { catalogByKey[p.productKey] = p; });
+      // Derived fresh from catalog every load, never mutated independently,
+      // so the two can't drift out of sync with each other.
+      catalogByKey = Object.fromEntries(catalog.map(p => [p.productKey, p]));
 
       renderAll();
     } catch (err) {

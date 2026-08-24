@@ -1102,11 +1102,7 @@ function ensureMenuEditorModal() {
     reader.readAsDataURL(file);
   });
 
-  modal.querySelector('.menu-editor-close').addEventListener('click', () => modal.classList.add('hidden'));
-  modal.querySelector('#menuEditorCancel').addEventListener('click', () => modal.classList.add('hidden'));
-  modal.addEventListener('click', event => {
-    if (event.target === modal) modal.classList.add('hidden');
-  });
+  window.AKO.wireModalDismiss(modal, 'menuEditorCancel');
 
   modal.querySelector('#menuEditorForm').addEventListener('submit', (event) => {
     event.preventDefault();
@@ -1229,11 +1225,7 @@ Profile: Citrus 5, Sweet 3, Floral 4
 Note: Seasonal favorite with a soft, clean finish`;
   textArea.value = example;
 
-  modal.querySelector('.menu-editor-close').addEventListener('click', () => modal.classList.add('hidden'));
-  modal.querySelector('#drinkPromptCancel').addEventListener('click', () => modal.classList.add('hidden'));
-  modal.addEventListener('click', (event) => {
-    if (event.target === modal) modal.classList.add('hidden');
-  });
+  window.AKO.wireModalDismiss(modal, 'drinkPromptCancel');
 
   modal.querySelector('#drinkPromptSave').addEventListener('click', () => {
     const response = textArea.value.trim();

@@ -9,11 +9,9 @@
 
 (function () {
 
-  function escapeHtml(str) {
-    return String(str ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-  }
+  // Shared with script.js (loaded first on every page) rather than
+  // redefined here, so there's one escaping implementation to keep correct.
+  const escapeHtml = window.AKO.escapeHtml;
 
   const KNOWN_SECTION_LABELS = { shirts: 'Shirts', bags: 'Bags', bandanas: 'Bandanas' };
   const NEW_SECTION_VALUE = '__new__';
@@ -93,6 +91,44 @@
   }
 
   /* ── Add/Edit Item modal ── */
+
+  // Fields that map straightforwardly between the form and a product's
+  // payload (read: value + coerce; write: the corresponding value back) —
+  // shared between the submit handler and editSelectedShopItem's populate
+  // step so a field can't silently drift out of sync between what's saved
+  // and what's shown when editing. productKey/section/sizes/price/active
+  // all have real business logic beyond simple assignment, so they stay
+  // handled explicitly at each call site instead of going in this table.
+  const SHOP_ITEM_SIMPLE_FIELDS = [
+    { key: 'name', id: 'shopItemName', type: 'text' },
+    { key: 'description', id: 'shopItemDescription', type: 'text' },
+    { key: 'image', id: 'shopItemImage', type: 'text' },
+    { key: 'tagLabel', id: 'shopItemTagLabel', type: 'text' },
+    { key: 'colorHex', id: 'shopItemColorHex', type: 'text' },
+    { key: 'accentHex', id: 'shopItemAccentHex', type: 'text' },
+    { key: 'specs', id: 'shopItemSpecs', type: 'text' },
+    { key: 'presale', id: 'shopItemPresale', type: 'checkbox' },
+    { key: 'order', id: 'shopItemOrder', type: 'number' },
+  ];
+
+  function readSimpleShopItemFields() {
+    const out = {};
+    for (const f of SHOP_ITEM_SIMPLE_FIELDS) {
+      const el = document.getElementById(f.id);
+      if (f.type === 'checkbox') out[f.key] = el.checked;
+      else if (f.type === 'number') out[f.key] = Number(el.value) || 0;
+      else out[f.key] = el.value.trim();
+    }
+    return out;
+  }
+
+  function writeSimpleShopItemFields(product) {
+    for (const f of SHOP_ITEM_SIMPLE_FIELDS) {
+      const el = document.getElementById(f.id);
+      if (f.type === 'checkbox') el.checked = !!product[f.key];
+      else el.value = product[f.key] ?? (f.type === 'number' ? 0 : '');
+    }
+  }
 
   function ensureShopItemModal() {
     if (document.getElementById('shopItemModal')) return;
@@ -191,11 +227,7 @@
       reader.readAsDataURL(file);
     });
 
-    modal.querySelector('.menu-editor-close').addEventListener('click', () => modal.classList.add('hidden'));
-    modal.querySelector('#shopItemCancel').addEventListener('click', () => modal.classList.add('hidden'));
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal) modal.classList.add('hidden');
-    });
+    window.AKO.wireModalDismiss(modal, 'shopItemCancel');
 
     modal.querySelector('#shopItemSection').addEventListener('change', (event) => {
       const isNew = event.target.value === NEW_SECTION_VALUE;
@@ -227,19 +259,11 @@
       if (!section) { alert('Enter a name for the new section.'); return; }
 
       const payload = {
+        ...readSimpleShopItemFields(),
         section,
-        name: document.getElementById('shopItemName').value.trim(),
-        description: document.getElementById('shopItemDescription').value.trim(),
-        image: document.getElementById('shopItemImage').value.trim(),
         price,
         sizes,
-        tagLabel: document.getElementById('shopItemTagLabel').value.trim(),
-        colorHex: document.getElementById('shopItemColorHex').value.trim(),
-        accentHex: document.getElementById('shopItemAccentHex').value.trim(),
-        specs: document.getElementById('shopItemSpecs').value.trim(),
-        presale: document.getElementById('shopItemPresale').checked,
         active: document.getElementById('shopItemActive').checked,
-        order: Number(document.getElementById('shopItemOrder').value) || 0,
       };
       if (!isEdit) payload.productKey = productKey;
 
@@ -308,18 +332,10 @@
     document.getElementById('shopItemProductKey').value = productKey;
     document.getElementById('shopItemProductKey').disabled = true;
     populateSectionSelect(product.section || '');
-    document.getElementById('shopItemName').value = product.name || '';
-    document.getElementById('shopItemDescription').value = product.description || '';
-    document.getElementById('shopItemImage').value = product.image || '';
+    writeSimpleShopItemFields(product);
     document.getElementById('shopItemPrice').value = ((product.price || 0) / 100).toFixed(2);
     document.getElementById('shopItemSizes').value = (product.sizes || []).join(', ');
-    document.getElementById('shopItemTagLabel').value = product.tagLabel || '';
-    document.getElementById('shopItemColorHex').value = product.colorHex || '';
-    document.getElementById('shopItemAccentHex').value = product.accentHex || '';
-    document.getElementById('shopItemSpecs').value = product.specs || '';
-    document.getElementById('shopItemPresale').checked = !!product.presale;
     document.getElementById('shopItemActive').checked = product.active !== false;
-    document.getElementById('shopItemOrder').value = product.order || 0;
 
     const preview = document.getElementById('shopItemImagePreview');
     if (product.image) {
@@ -377,11 +393,7 @@
       </div>
     `;
 
-    modal.querySelector('.menu-editor-close').addEventListener('click', () => modal.classList.add('hidden'));
-    modal.querySelector('#shopStockCancel').addEventListener('click', () => modal.classList.add('hidden'));
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal) modal.classList.add('hidden');
-    });
+    window.AKO.wireModalDismiss(modal, 'shopStockCancel');
 
     modal.querySelector('#shopStockForm').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -456,38 +468,43 @@
     'image/svg+xml': 'svg',
   };
 
+  // Uploads one product's staged image and updates its Mongo record with the
+  // resolved path. Independent per product (different Mongo doc, different
+  // GitHub file path), so publishShopCatalogToGitHub runs these concurrently
+  // across products rather than one at a time.
+  async function resolveStagedImageForProduct(product) {
+    const match = /^data:([^;]+);base64,/.exec(product.image || '');
+    if (!match) return;
+
+    const ext = IMAGE_MIME_EXTENSIONS[match[1]] || 'png';
+    const filename = `${product.productKey.replace(/\|/g, '-')}.${ext}`;
+
+    const uploadRes = await fetch('/api/github/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ dataUrl: product.image, folder: 'Pictures/merch', filename }),
+    });
+    const uploadData = await uploadRes.json().catch(() => ({}));
+    if (!uploadRes.ok || !uploadData.ok) {
+      throw new Error(uploadData.error || `Failed to upload image for "${product.productKey}".`);
+    }
+
+    const updateRes = await fetch(`/api/shop-catalog/${encodeURIComponent(product.productKey)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ image: uploadData.path }),
+    });
+    const updateData = await updateRes.json().catch(() => ({}));
+    if (!updateRes.ok || !updateData.ok) {
+      throw new Error(updateData.error || `Failed to save resolved image path for "${product.productKey}".`);
+    }
+  }
+
   async function publishShopCatalogToGitHub() {
     const products = window.AKOShop?.getAllProducts() || [];
-
-    for (const product of products) {
-      const match = /^data:([^;]+);base64,/.exec(product.image || '');
-      if (!match) continue;
-
-      const ext = IMAGE_MIME_EXTENSIONS[match[1]] || 'png';
-      const filename = `${product.productKey.replace(/\|/g, '-')}.${ext}`;
-
-      const uploadRes = await fetch('/api/github/upload-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ dataUrl: product.image, folder: 'Pictures/merch', filename }),
-      });
-      const uploadData = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok || !uploadData.ok) {
-        throw new Error(uploadData.error || `Failed to upload image for "${product.productKey}".`);
-      }
-
-      const updateRes = await fetch(`/api/shop-catalog/${encodeURIComponent(product.productKey)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ image: uploadData.path }),
-      });
-      const updateData = await updateRes.json().catch(() => ({}));
-      if (!updateRes.ok || !updateData.ok) {
-        throw new Error(updateData.error || `Failed to save resolved image path for "${product.productKey}".`);
-      }
-    }
+    await Promise.all(products.map(resolveStagedImageForProduct));
 
     const publishRes = await fetch('/api/shop-catalog/publish', { method: 'POST', credentials: 'same-origin' });
     const publishData = await publishRes.json().catch(() => ({}));
