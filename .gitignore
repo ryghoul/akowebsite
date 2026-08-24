@@ -3,3 +3,6 @@
 .env.*
 environmentals.env
 .claude
+
+# Local runtime state (menu editor's saved snapshot, disposable per-server)
+data/
