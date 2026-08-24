@@ -50,11 +50,16 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const MENU_STATE_REPO_PATH = process.env.MENU_STATE_REPO_PATH || 'data/menu-state.json';
 const SHOP_CATALOG_REPO_PATH = process.env.SHOP_CATALOG_REPO_PATH || 'data/shop-catalog.json';
 
-const ADMIN_USER = process.env.ADMIN_USER || 'akostaff';
-const ADMIN_PASS = process.env.ADMIN_PASS || 'teaparasaamin';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const ADMIN_USER = process.env.ADMIN_USER || (IS_PRODUCTION ? '' : 'akostaff');
+const ADMIN_PASS = process.env.ADMIN_PASS || (IS_PRODUCTION ? '' : 'teaparasaamin');
 const ADMIN_COOKIE_NAME = 'ako_admin_session';
 const ADMIN_SESSION_TTL_MS = 1000 * 60 * 60 * 12;
-const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'ako-admin-session-secret';
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || (IS_PRODUCTION ? '' : 'ako-admin-session-secret');
+
+if (IS_PRODUCTION && (!ADMIN_USER || !ADMIN_PASS || !ADMIN_SESSION_SECRET)) {
+  throw new Error('ADMIN_USER, ADMIN_PASS, and ADMIN_SESSION_SECRET are required in production.');
+}
 
 const DATA_DIR = path.resolve(__dirname, 'data');
 const MENU_STATE_FILE = process.env.MENU_STATE_FILE || path.join(DATA_DIR, 'menu-state.json');
@@ -151,6 +156,13 @@ function signAdminPayload(payload) {
     .digest('base64url');
 }
 
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+  return leftBuffer.length === rightBuffer.length
+    && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function createAdminSessionToken(username) {
   const payload = Buffer.from(JSON.stringify({
     username,
@@ -166,7 +178,7 @@ function verifyAdminSessionToken(token) {
   if (!payload || !signature) return null;
 
   const expected = signAdminPayload(payload);
-  if (signature !== expected) return null;
+  if (!safeEqual(signature, expected)) return null;
 
   try {
     const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
@@ -283,11 +295,13 @@ async function publishMenuSnapshotToGitHub(snapshot) {
 // ─────────────────────────────────────────────────────────────
 // Debug & Health
 // ─────────────────────────────────────────────────────────────
-app.get('/debug/public-list', (_req, res) => {
-  let list;
-  try { list = fs.readdirSync(STATIC_ROOT); } catch { list = ['<missing public/>']; }
-  res.json({ STATIC_ROOT, list });
-});
+if (!IS_PRODUCTION) {
+  app.get('/debug/public-list', (_req, res) => {
+    let list;
+    try { list = fs.readdirSync(STATIC_ROOT); } catch { list = ['<missing public/>']; }
+    res.json({ STATIC_ROOT, list });
+  });
+}
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.get('/api/admin/status', (req, res) => {
@@ -299,7 +313,7 @@ app.post('/api/admin/login', (req, res) => {
   const username = String(req.body?.username || '').trim();
   const password = String(req.body?.password || '');
 
-  if (username !== ADMIN_USER || password !== ADMIN_PASS) {
+  if (!safeEqual(username, ADMIN_USER) || !safeEqual(password, ADMIN_PASS)) {
     clearAdminSessionCookie(res);
     return res.status(401).json({ ok: false, error: 'Invalid staff credentials.' });
   }
@@ -459,9 +473,7 @@ app.post('/contact', corsMW, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// Shared checkout stock decrement (used only from the server-verified
-// confirm-order path below — never call this from an unauthenticated,
-// client-triggered route, since nothing here confirms payment happened).
+// Shared checkout stock decrement, used only by signed Stripe fulfillment.
 // ─────────────────────────────────────────────────────────────
 
 // Guarded $inc per sku, run concurrently since each line targets a different
@@ -545,16 +557,14 @@ if (stripe) {
           // Disabled deliberately: the site's own cart drawer already lets
           // customers adjust quantity before checkout. If Stripe's hosted
           // UI could also adjust it, the cart snapshot we stash in session
-          // metadata below (and decrement from at confirm-order time) could
-          // go stale relative to what was actually paid for.
+          // cart snapshot in session metadata could go stale relative to what
+          // was actually paid for.
           adjustable_quantity: { enabled: false },
         });
       }
 
       const cartMetadata = JSON.stringify(cart);
       if (cartMetadata.length > 450) {
-        // Stripe caps metadata values at 500 chars; fail loudly rather than
-        // silently truncate the cart we'll later decrement stock from.
         return res.status(400).json({ error: 'Cart is too large to check out in one order — please split it into smaller orders.' });
       }
 
@@ -570,7 +580,7 @@ if (stripe) {
         customer_email: customer?.email,
         shipping_address_collection: { allowed_countries: ['US','CA','GB','AU','JP','DE','FR','MX','SG'] },
         success_url: successUrl,
-        cancel_url:  cancelUrl,
+        cancel_url: cancelUrl,
         metadata: { cart: cartMetadata },
       });
 
@@ -581,63 +591,96 @@ if (stripe) {
     }
   });
 
-  // Confirm Order (no webhook) → decrement stock + send emails, each at most
-  // once per session, tracked independently. Idempotency is anchored to a
-  // unique OrderEvent doc in Mongo (not an in-memory Set) so it survives a
-  // server restart between a customer's page refresh and this request.
+  // Browser-triggered confirmation verifies payment with Stripe before any
+  // side effects. Each task is claimed independently for safe retries.
   function tryGetMailer() { try { return getTransporter(); } catch { return null; } }
+
+  async function ensureOrderEvent(sessionId) {
+    try {
+      return await OrderEvent.findOneAndUpdate(
+        { sessionId },
+        { $setOnInsert: { sessionId } },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      if (err?.code === 11000) return OrderEvent.findOne({ sessionId });
+      throw err;
+    }
+  }
+
+  async function runClaimedOrderTask(sessionId, { claimField, completedField }, task) {
+    const claimed = await OrderEvent.findOneAndUpdate(
+      { sessionId, [completedField]: null, [claimField]: null },
+      { $set: { [claimField]: new Date() } },
+      { new: true }
+    );
+    if (!claimed) {
+      const existing = await OrderEvent.findOne({ sessionId }).select(completedField).lean();
+      if (existing?.[completedField]) return false;
+      throw new Error(`Order task ${completedField} is already in progress.`);
+    }
+
+    try {
+      await task();
+      await OrderEvent.updateOne(
+        { sessionId, [completedField]: null },
+        { $set: { [completedField]: new Date() }, $unset: { [claimField]: 1 } }
+      );
+      return true;
+    } catch (err) {
+      await OrderEvent.updateOne(
+        { sessionId, [completedField]: null },
+        { $unset: { [claimField]: 1 } }
+      );
+      throw err;
+    }
+  }
 
   app.get('/api/confirm-order', async (req, res) => {
     try {
-      const session_id = req.query.session_id || req.query.sessionId;
-      if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
+      const sessionId = String(req.query.session_id || req.query.sessionId || '').trim();
+      if (!sessionId) return res.status(400).json({ ok: false, error: 'Missing session_id' });
 
-      const session = await stripe.checkout.sessions.retrieve(session_id, {
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
         expand: ['line_items', 'customer_details'],
       });
 
       if (session.payment_status !== 'paid') {
-        return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
+        return res.status(400).json({ ok: false, error: 'Payment not completed', status: session.payment_status });
       }
 
-      // Find-or-create the OrderEvent doc for this session in one round trip.
-      // The unique index on sessionId makes this safe under concurrent
-      // requests — Mongo resolves a racing upsert against the same key to a
-      // single winning insert, so this never throws a duplicate-key error.
-      const orderEvent = await OrderEvent.findOneAndUpdate(
-        { sessionId: session_id },
-        { $setOnInsert: { sessionId: session_id } },
-        { upsert: true, new: true }
-      );
+      const orderEvent = await ensureOrderEvent(sessionId);
+      const customerEmail = session.customer_details?.email || session.customer_email;
+      const customerName = session.customer_details?.name || 'Customer';
 
-      // Decrement and email are claimed independently via their own
-      // decrementedAt/emailedAt fields, not a single shared flag — so if
-      // e.g. email fails on the first attempt (decrement already succeeded),
-      // a later retry (page refresh) still retries the email without
-      // re-running (and double-decrementing) the stock update.
+      // Inventory and each email delivery are claimed independently, so
+      // concurrent confirmations cannot run the same side effect twice and a
+      // handled failure can be retried without repeating completed work.
       if (!orderEvent.decrementedAt) {
         try {
-          let cartLines = [];
-          try { cartLines = JSON.parse(session.metadata?.cart || '[]'); } catch { cartLines = []; }
-          if (Array.isArray(cartLines) && cartLines.length) {
-            await decrementInventoryForCart(cartLines);
-          }
-          orderEvent.decrementedAt = new Date();
-          await orderEvent.save();
+          await runClaimedOrderTask(sessionId, {
+            claimField: 'decrementClaimedAt',
+            completedField: 'decrementedAt',
+          }, async () => {
+            let cartLines = [];
+            try { cartLines = JSON.parse(session.metadata?.cart || '[]'); } catch { cartLines = []; }
+            if (Array.isArray(cartLines) && cartLines.length) {
+              await decrementInventoryForCart(cartLines);
+            }
+          });
         } catch (err) {
-          // Customer already paid via Stripe — never fail their confirmation
-          // page over a stock-accounting hiccup. Just log it for follow-up.
-          // decrementedAt stays unset so the next confirm-order call retries.
           console.error('[confirm-order] decrement error:', err);
+          throw err;
         }
       }
 
       const mailer = tryGetMailer();
+      // emailedAt covers legacy records; new records track each recipient
+      // independently through the claimed task fields below.
       if (mailer && !orderEvent.emailedAt) {
         try {
           const items = session.line_items?.data || [];
-          const customerEmail = session.customer_details?.email || session.customer_email;
-          const name = session.customer_details?.name || 'Customer';
+          const name = customerName;
           const amountTotal = (session.amount_total || 0) / 100;
           const currency = (session.currency || 'usd').toUpperCase();
 
@@ -656,16 +699,22 @@ Total: $${amountTotal.toFixed(2)} ${currency}
 
 — AKO by Lee`;
 
-          // Independent sends (customer receipt + internal notice) — run
-          // concurrently rather than back-to-back on this user-facing request.
+          // Claim and record each delivery independently. If one send fails,
+          // retrying does not duplicate the other recipient's message.
           await Promise.all([
-            customerEmail ? mailer.sendMail({
+            customerEmail ? runClaimedOrderTask(sessionId, {
+              claimField: 'customerEmailClaimedAt',
+              completedField: 'customerEmailedAt',
+            }, () => mailer.sendMail({
               from: EMAIL_USER,
               to: customerEmail,
               subject: 'AKO by Lee — Order Confirmation',
               text: receiptText,
-            }) : null,
-            mailer.sendMail({
+            })) : null,
+            runClaimedOrderTask(sessionId, {
+              claimField: 'internalEmailClaimedAt',
+              completedField: 'internalEmailedAt',
+            }, () => mailer.sendMail({
               from: EMAIL_USER,
               to: TO_EMAIL || EMAIL_USER,
               subject: `New Order — ${customerEmail || name}`,
@@ -676,20 +725,18 @@ Total: $${amountTotal.toFixed(2)} ${currency}
 
 Items:
 ${list || '(no items?)'}`,
-            }),
+            })),
           ]);
-
-          orderEvent.emailedAt = new Date();
-          await orderEvent.save();
         } catch (err) {
           console.error('[confirm-order] email error:', err);
+          throw err;
         }
       }
 
-      res.json({ ok: true, emailed: true });
+      res.json({ ok: true });
     } catch (err) {
-      console.error('Confirm-order error:', err);
-      res.status(500).json({ error: err.message });
+      console.error('[confirm-order] error:', err);
+      res.status(500).json({ ok: false, error: err.message || 'Unable to confirm order' });
     }
   });
 }

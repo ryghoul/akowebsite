@@ -469,9 +469,8 @@
   };
 
   // Uploads one product's staged image and updates its Mongo record with the
-  // resolved path. Independent per product (different Mongo doc, different
-  // GitHub file path), so publishShopCatalogToGitHub runs these concurrently
-  // across products rather than one at a time.
+  // resolved path. GitHub Contents API writes share one branch tip, so callers
+  // intentionally publish these in order to avoid competing ref updates.
   async function resolveStagedImageForProduct(product) {
     const match = /^data:([^;]+);base64,/.exec(product.image || '');
     if (!match) return;
@@ -504,7 +503,9 @@
 
   async function publishShopCatalogToGitHub() {
     const products = window.AKOShop?.getAllProducts() || [];
-    await Promise.all(products.map(resolveStagedImageForProduct));
+    for (const product of products) {
+      await resolveStagedImageForProduct(product);
+    }
 
     const publishRes = await fetch('/api/shop-catalog/publish', { method: 'POST', credentials: 'same-origin' });
     const publishData = await publishRes.json().catch(() => ({}));
