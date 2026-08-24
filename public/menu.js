@@ -825,10 +825,14 @@ function renderArchiveRows() {
 }
 
 function setupMenuTabs() {
+  // "Archive" used to be a second tab here, wired to a #panel-archive panel
+  // that was never actually built — Archive has always really been the
+  // collapsible section at the bottom of #panel-current (see #archiveToggle
+  // below). The dead tab button was removed; #panel-current is the only
+  // real panel now.
   const tabs = document.querySelectorAll('.menu-tab');
   const panels = {
     current: document.getElementById('panel-current'),
-    archive: document.getElementById('panel-archive'),
   };
 
   tabs.forEach(tab => {
